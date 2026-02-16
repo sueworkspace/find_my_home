@@ -1,0 +1,175 @@
+.listings-table-wrapper {
+  overflow-x: auto;
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-gray-200);
+  box-shadow: var(--shadow-sm);
+}
+
+.listings-table {
+  width: 100%;
+  border-collapse: collapse;
+  white-space: nowrap;
+  min-width: 900px;
+}
+
+/* Header */
+.listings-table thead {
+  background: var(--color-gray-50);
+  border-bottom: 2px solid var(--color-gray-200);
+}
+
+.listings-table__th {
+  padding: 12px 16px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--color-gray-600);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  user-select: none;
+  position: sticky;
+  top: 0;
+  background: var(--color-gray-50);
+  z-index: 10;
+}
+
+.listings-table__th:hover {
+  color: var(--color-primary);
+  background: var(--color-gray-100);
+}
+
+.listings-table__th--left {
+  text-align: left;
+}
+
+.listings-table__th--center {
+  text-align: center;
+}
+
+.listings-table__th--right {
+  text-align: right;
+}
+
+.listings-table__th-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Sort indicators */
+.sort-indicator {
+  font-size: 0.625rem;
+  line-height: 1;
+}
+
+.sort-indicator--inactive {
+  opacity: 0.25;
+}
+
+.sort-indicator--asc,
+.sort-indicator--desc {
+  opacity: 1;
+  color: var(--color-primary);
+}
+
+/* Body rows */
+.listings-table__row {
+  cursor: pointer;
+  transition: background-color 0.15s;
+  border-bottom: 1px solid var(--color-gray-100);
+}
+
+.listings-table__row:hover {
+  background-color: #EEF4FF;
+}
+
+.listings-table__row:active {
+  background-color: #DBEAFE;
+}
+
+.listings-table__td {
+  padding: 12px 16px;
+  font-size: 0.875rem;
+  color: var(--color-gray-700);
+}
+
+.listings-table__td--left {
+  text-align: left;
+}
+
+.listings-table__td--center {
+  text-align: center;
+}
+
+.listings-table__td--right {
+  text-align: right;
+}
+
+/* Apartment name */
+.listings-table__apt-name {
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+/* Price styling */
+.listings-table__td--price {
+  font-weight: 600;
+  color: var(--color-gray-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.listings-table__td--kb {
+  color: var(--color-gray-500);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Discount rate */
+.listings-table__discount {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.listings-table__discount--high {
+  background: rgba(220, 38, 38, 0.08);
+  color: #B91C1C;
+}
+
+.listings-table__discount--mid {
+  background: rgba(245, 158, 11, 0.08);
+  color: #B45309;
+}
+
+.listings-table__discount--low {
+  background: rgba(34, 197, 94, 0.08);
+  color: #15803D;
+}
+
+/* Recent deal */
+.listings-table__deal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.listings-table__deal-date {
+  font-size: 0.6875rem;
+  color: var(--color-gray-400);
+}
+
+/* Responsive: scrollable table on mobile */
+@media (max-width: 768px) {
+  .listings-table-wrapper {
+    border-radius: var(--radius-md);
+  }
+
+  .listings-table__th,
+  .listings-table__td {
+    padding: 10px 12px;
+    font-size: 0.8125rem;
+  }
+}
