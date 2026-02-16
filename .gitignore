@@ -17,5 +17,8 @@ dist/
 # OS
 .DS_Store
 
+# Claude
+.claude/
+
 # Test files
 backend/test_crawler*.py
