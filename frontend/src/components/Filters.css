@@ -1,3 +1,10 @@
+/* ===================================================================
+ * Filters 스타일 (Filters.css)
+ * - 필터 패널: 접기/펼치기 가능
+ * - Mobile First: 모바일에서 세로 배치 → 데스크톱에서 가로 배치
+ * =================================================================== */
+
+/* 필터 전체 컨테이너 */
 .filters {
   background: var(--color-white);
   border-radius: var(--radius-lg);
@@ -5,6 +12,7 @@
   overflow: hidden;
 }
 
+/* 필터 헤더: 토글 버튼 + 건수 */
 .filters__header {
   display: flex;
   align-items: center;
@@ -13,6 +21,7 @@
   border-bottom: 1px solid var(--color-gray-100);
 }
 
+/* 토글 버튼: 터치 친화적 크기 */
 .filters__toggle {
   display: flex;
   align-items: center;
@@ -29,6 +38,7 @@
   color: var(--color-primary);
 }
 
+/* 접기/펼치기 화살표 회전 애니메이션 */
 .filters__chevron {
   transition: transform 0.2s ease;
 }
@@ -41,6 +51,7 @@
   font-size: 0.9375rem;
 }
 
+/* 필터 활성 뱃지 */
 .filters__badge {
   font-size: 0.6875rem;
   font-weight: 600;
@@ -50,6 +61,7 @@
   border-radius: 10px;
 }
 
+/* 건수 표시 영역 */
 .filters__counts {
   display: flex;
   align-items: center;
@@ -61,25 +73,28 @@
   font-weight: 500;
 }
 
+/* 필터 본문 영역 */
 .filters__body {
   padding: var(--space-md);
   background: var(--color-gray-50);
 }
 
+/* 필터 항목 행: 모바일 기본은 세로 배치 */
 .filters__row {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-md);
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
+/* 각 필터 그룹 (라벨 + 셀렉트): 모바일에서 전체 너비 */
 .filters__group {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  min-width: 160px;
+  width: 100%;
 }
 
+/* 필터 라벨 */
 .filters__label {
   font-size: 0.75rem;
   font-weight: 600;
@@ -88,13 +103,16 @@
   letter-spacing: 0.05em;
 }
 
+/* 필터 셀렉트 박스: 모바일에서 전체 너비 */
 .filters__select {
+  width: 100%;
   padding: 8px 32px 8px 12px;
   border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-sm);
   background-color: var(--color-white);
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
   color: var(--color-gray-700);
+  /* 기본 화살표 제거 후 커스텀 화살표 적용 */
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -110,16 +128,19 @@
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 
+/* 필터 초기화 버튼: 모바일에서 전체 너비, 터치 친화적 */
 .filters__reset {
+  width: 100%;
   padding: 8px 16px;
   background: none;
   border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-sm);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   color: var(--color-gray-600);
   font-weight: 500;
   transition: all 0.2s;
   white-space: nowrap;
+  text-align: center;
 }
 
 .filters__reset:hover {
@@ -128,23 +149,24 @@
   color: var(--color-gray-800);
 }
 
-@media (max-width: 640px) {
+/* === 태블릿 이상 (768px~): 가로 배치로 전환 === */
+@media (min-width: 768px) {
   .filters__row {
-    flex-direction: column;
-    gap: var(--space-sm);
+    flex-direction: row;
+    align-items: flex-end;
+    gap: var(--space-md);
   }
 
   .filters__group {
-    width: 100%;
-    min-width: unset;
+    width: auto;
+    min-width: 160px;
   }
 
   .filters__select {
-    width: 100%;
+    font-size: 0.875rem;
   }
 
   .filters__reset {
-    width: 100%;
-    text-align: center;
+    width: auto;
   }
 }

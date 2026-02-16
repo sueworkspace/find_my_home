@@ -1,12 +1,20 @@
+/* ===================================================================
+ * LoadingSpinner 스타일 (LoadingSpinner.css)
+ * - 로딩 중 표시되는 스피너 + 안내 텍스트
+ * - 화면 중앙 정렬, 모든 화면 크기에서 동일 표시
+ * =================================================================== */
+
+/* 스피너 컨테이너: 중앙 정렬 */
 .loading-spinner {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: var(--space-2xl) var(--space-lg);
-  min-height: 300px;
+  min-height: 250px;
 }
 
+/* 회전 링 컨테이너 */
 .loading-spinner__ring {
   display: inline-block;
   position: relative;
@@ -14,6 +22,7 @@
   height: 48px;
 }
 
+/* 각 링 요소: 회전 애니메이션 적용 */
 .loading-spinner__ring div {
   box-sizing: border-box;
   display: block;
@@ -27,29 +36,28 @@
   border-color: var(--color-primary) transparent transparent transparent;
 }
 
-.loading-spinner__ring div:nth-child(1) {
-  animation-delay: -0.45s;
-}
+/* 각 링의 애니메이션 딜레이 (시차 효과) */
+.loading-spinner__ring div:nth-child(1) { animation-delay: -0.45s; }
+.loading-spinner__ring div:nth-child(2) { animation-delay: -0.3s; }
+.loading-spinner__ring div:nth-child(3) { animation-delay: -0.15s; }
 
-.loading-spinner__ring div:nth-child(2) {
-  animation-delay: -0.3s;
-}
-
-.loading-spinner__ring div:nth-child(3) {
-  animation-delay: -0.15s;
-}
-
+/* 회전 애니메이션 키프레임 */
 @keyframes loading-ring {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
+/* 메인 로딩 텍스트 */
 .loading-spinner__text {
   margin-top: var(--space-md);
-  font-size: 0.875rem;
-  color: var(--color-gray-500);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-gray-600);
+}
+
+/* 보조 안내 텍스트 */
+.loading-spinner__subtext {
+  margin-top: var(--space-xs);
+  font-size: 0.8125rem;
+  color: var(--color-gray-400);
 }

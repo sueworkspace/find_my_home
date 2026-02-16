@@ -1,7 +1,14 @@
+/* ===================================================================
+ * Header 스타일 (Header.css)
+ * - 상단 고정 헤더, 그라데이션 배경
+ * - Mobile First: 모바일에서 세로 배치 → 데스크톱에서 가로 배치
+ * =================================================================== */
+
 .header {
   background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 50%, var(--color-primary-light) 100%);
   color: var(--color-white);
-  padding: var(--space-md) var(--space-xl);
+  /* 모바일 기본: 작은 패딩 */
+  padding: var(--space-sm) var(--space-md);
   box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
@@ -11,50 +18,62 @@
 .header__inner {
   max-width: 1400px;
   margin: 0 auto;
+  /* 모바일 기본: 세로 배치 (좌측 정렬) */
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
 }
 
+/* 로고 영역 */
 .header__logo {
   display: flex;
   align-items: center;
   gap: var(--space-sm);
 }
 
+/* 로고 아이콘 크기 - 모바일 기본 */
 .header__icon {
-  width: 36px;
-  height: 36px;
+  width: 28px;
+  height: 28px;
 }
 
+/* 타이틀 텍스트 - 모바일 기본 */
 .header__title {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
 
+/* 서비스 설명 - 모바일 기본 */
 .header__subtitle {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   opacity: 0.8;
   font-weight: 400;
 }
 
-@media (max-width: 640px) {
+/* === 태블릿 이상 (768px~): 가로 배치로 전환 === */
+@media (min-width: 768px) {
   .header {
-    padding: var(--space-sm) var(--space-md);
+    padding: var(--space-md) var(--space-xl);
   }
 
   .header__inner {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-xs);
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header__icon {
+    width: 36px;
+    height: 36px;
   }
 
   .header__title {
-    font-size: 1.25rem;
+    font-size: 1.5rem;
   }
 
   .header__subtitle {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
   }
 }

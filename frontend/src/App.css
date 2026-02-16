@@ -1,32 +1,44 @@
+/* ===================================================================
+ * App 레이아웃 스타일 (App.css)
+ * - 전체 앱의 레이아웃 구조 정의
+ * - Mobile First: 모바일 기본 → min-width로 태블릿/데스크톱 확장
+ * =================================================================== */
+
+/* 앱 전체 컨테이너: 최소 화면 높이 확보 */
 .app {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
+/* 메인 컨텐츠 영역 - 모바일 기본 패딩 */
 .app__main {
   flex: 1;
-  padding: var(--space-lg) var(--space-xl);
+  padding: var(--space-sm);
 }
 
+/* 내부 컨테이너: 최대 너비 제한 및 중앙 정렬 */
 .app__container {
   max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
+  gap: var(--space-sm);
 }
 
+/* 각 섹션 기본 스타일 */
 .app__section {
   width: 100%;
 }
 
+/* 컨텐츠 섹션 최소 높이 (로딩/빈 상태 표시 영역) */
 .app__section--content {
-  min-height: 400px;
+  min-height: 300px;
 }
 
+/* 선택된 지역 라벨 */
 .app__region-label {
-  font-size: 1.25rem;
+  font-size: 1.0625rem;
   font-weight: 700;
   color: var(--color-primary);
   padding: var(--space-xs) 0;
@@ -34,33 +46,47 @@
   display: inline-block;
 }
 
-/* Footer */
+/* === 푸터 === */
 .app__footer {
   background: var(--color-gray-800);
   color: var(--color-gray-400);
   text-align: center;
-  padding: var(--space-md) var(--space-lg);
+  padding: var(--space-md) var(--space-md);
   font-size: 0.75rem;
   line-height: 1.6;
   margin-top: auto;
 }
 
-@media (max-width: 768px) {
+/* === 태블릿 이상 (768px~) === */
+@media (min-width: 768px) {
   .app__main {
     padding: var(--space-md);
   }
 
   .app__container {
-    gap: var(--space-sm);
+    gap: var(--space-md);
+  }
+
+  .app__section--content {
+    min-height: 400px;
   }
 
   .app__region-label {
-    font-size: 1.0625rem;
+    font-size: 1.125rem;
   }
 }
 
-@media (max-width: 480px) {
+/* === 데스크톱 (1024px~) === */
+@media (min-width: 1024px) {
   .app__main {
-    padding: var(--space-sm);
+    padding: var(--space-lg) var(--space-xl);
+  }
+
+  .app__region-label {
+    font-size: 1.25rem;
+  }
+
+  .app__footer {
+    padding: var(--space-md) var(--space-lg);
   }
 }

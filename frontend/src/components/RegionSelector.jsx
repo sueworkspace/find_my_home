@@ -1,20 +1,30 @@
+/**
+ * RegionSelector 컴포넌트
+ *
+ * 역할:
+ * - 시/도 → 시/군/구 2단계 드롭다운 지역 선택기
+ * - 시/도 선택 시 해당 시/군/구 목록을 API에서 자동 로드
+ * - 두 드롭다운이 모두 선택되면 부모에 지역 변경 알림
+ * - 모바일: 전체 너비 세로 배치, 데스크톱: 가로 배치
+ */
 import { useState, useEffect } from 'react';
 import { getSidoList, getSigunguList } from '../services/api';
 import './RegionSelector.css';
 
 export default function RegionSelector({ onRegionChange }) {
-  const [sidoList, setSidoList] = useState([]);
-  const [sigunguList, setSigunguList] = useState([]);
-  const [selectedSido, setSelectedSido] = useState('');
-  const [selectedSigungu, setSelectedSigungu] = useState('');
-  const [loading, setLoading] = useState(false);
+  /* === 상태 === */
+  const [sidoList, setSidoList] = useState([]);         // 시/도 목록
+  const [sigunguList, setSigunguList] = useState([]);   // 시/군/구 목록
+  const [selectedSido, setSelectedSido] = useState(''); // 선택된 시/도
+  const [selectedSigungu, setSelectedSigungu] = useState(''); // 선택된 시/군/구
+  const [loading, setLoading] = useState(false);        // 시/군/구 로딩 상태
 
-  // Load sido list on mount
+  /** 컴포넌트 마운트 시 시/도 목록 로드 */
   useEffect(() => {
     getSidoList().then(setSidoList);
   }, []);
 
-  // Load sigungu list when sido changes
+  /** 시/도 변경 시 해당 시/군/구 목록 새로 로드 */
   useEffect(() => {
     if (!selectedSido) {
       setSigunguList([]);
@@ -29,7 +39,7 @@ export default function RegionSelector({ onRegionChange }) {
     });
   }, [selectedSido]);
 
-  // Notify parent when region selection is complete
+  /** 시/도 + 시/군/구 선택 완료 시 부모 컴포넌트에 알림 */
   useEffect(() => {
     if (selectedSido && selectedSigungu) {
       onRegionChange(selectedSido, selectedSigungu);
@@ -38,16 +48,19 @@ export default function RegionSelector({ onRegionChange }) {
     }
   }, [selectedSido, selectedSigungu]);
 
+  /** 시/도 셀렉트 변경 핸들러 */
   const handleSidoChange = (e) => {
     setSelectedSido(e.target.value);
   };
 
+  /** 시/군/구 셀렉트 변경 핸들러 */
   const handleSigunguChange = (e) => {
     setSelectedSigungu(e.target.value);
   };
 
   return (
     <div className="region-selector">
+      {/* 시/도 드롭다운 */}
       <div className="region-selector__group">
         <label className="region-selector__label" htmlFor="sido-select">
           시/도
@@ -67,6 +80,7 @@ export default function RegionSelector({ onRegionChange }) {
         </select>
       </div>
 
+      {/* 시/군/구 드롭다운 */}
       <div className="region-selector__group">
         <label className="region-selector__label" htmlFor="sigungu-select">
           시/군/구

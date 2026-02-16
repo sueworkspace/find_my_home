@@ -1,17 +1,25 @@
+/* ===================================================================
+ * RegionSelector 스타일 (RegionSelector.css)
+ * - 시/도, 시/군/구 드롭다운 선택기
+ * - Mobile First: 모바일에서 전체 너비 세로 배치 → 데스크톱에서 가로 배치
+ * =================================================================== */
+
+/* 컨테이너: 모바일 기본은 세로 배치 */
 .region-selector {
   display: flex;
-  gap: var(--space-md);
-  align-items: flex-end;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--space-sm);
 }
 
+/* 각 드롭다운 그룹 (라벨 + 셀렉트) */
 .region-selector__group {
   display: flex;
   flex-direction: column;
   gap: var(--space-xs);
-  min-width: 180px;
+  width: 100%;
 }
 
+/* 라벨 스타일 */
 .region-selector__label {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -20,13 +28,16 @@
   letter-spacing: 0.05em;
 }
 
+/* 셀렉트 박스: 모바일에서 전체 너비, 터치 친화적 크기 */
 .region-selector__select {
+  width: 100%;
   padding: 10px 36px 10px 14px;
   border: 1px solid var(--color-gray-300);
   border-radius: var(--radius-md);
   background-color: var(--color-white);
-  font-size: 0.9375rem;
+  font-size: 1rem;
   color: var(--color-gray-800);
+  /* 기본 화살표 제거 후 커스텀 화살표 적용 */
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2364748B' d='M2.5 4.5L6 8l3.5-3.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -36,34 +47,39 @@
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+/* 호버 상태 */
 .region-selector__select:hover {
   border-color: var(--color-primary-light);
 }
 
+/* 포커스 상태: 파란색 아웃라인 */
 .region-selector__select:focus {
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
 }
 
+/* 비활성화 상태 */
 .region-selector__select:disabled {
   background-color: var(--color-gray-100);
   color: var(--color-gray-400);
   cursor: not-allowed;
 }
 
-@media (max-width: 640px) {
+/* === 태블릿 이상 (768px~): 가로 배치 === */
+@media (min-width: 768px) {
   .region-selector {
-    flex-direction: column;
-    gap: var(--space-sm);
+    flex-direction: row;
+    gap: var(--space-md);
+    align-items: flex-end;
   }
 
   .region-selector__group {
-    width: 100%;
-    min-width: unset;
+    width: auto;
+    min-width: 200px;
   }
 
   .region-selector__select {
-    width: 100%;
+    font-size: 0.9375rem;
   }
 }

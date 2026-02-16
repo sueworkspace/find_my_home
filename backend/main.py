@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.regions import router as regions_router
 from app.api.listings import router as listings_router
+from app.api.transactions import router as transactions_router
 
 app = FastAPI(
     title="Find My Home API",
@@ -32,6 +33,7 @@ app.add_middleware(
 # -----------------------------------------------------------
 app.include_router(regions_router)
 app.include_router(listings_router)
+app.include_router(transactions_router)
 
 
 @app.get("/", tags=["health"])
