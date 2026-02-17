@@ -7,13 +7,16 @@
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Union
 
 from sqlalchemy.orm import Session
+
+from sqlalchemy import func as sa_func
 
 from app.crawler.naver_client import NaverLandClient
 from app.models.apartment import ApartmentComplex, Listing
 from app.models.database import SessionLocal
+from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +26,7 @@ logger = logging.getLogger(__name__)
 # 네이버 부동산 API에서 사용하는 cortarNo 기반
 # ──────────────────────────────────────────
 # 시/도 코드 (상위 2자리 + 0 패딩)
-SIDO_CODES: dict[str, str] = {
+SIDO_CODES: Dict[str, str] = {
     "서울특별시": "1100000000",
     "부산광역시": "2600000000",
     "대구광역시": "2700000000",
@@ -158,14 +161,13 @@ class NaverCrawler:
             logger.error("알 수 없는 시/도: %s", sido)
             return None
 
-        # 시/도 하위 지역(시/군/구) 목록 조회
-        data = await self.client.get_sub_regions(sido_code)
-        if not data:
+        # 시/도 하위 지역(시/군/구) 목록 조회 (정규화된 리스트 반환)
+        regions = await self.client.get_sub_regions(sido_code)
+        if not regions:
             logger.error("시/도 하위 지역 조회 실패: %s", sido)
             return None
 
-        region_list = data.get("regionList", [])
-        for region in region_list:
+        for region in regions:
             cortar_name = region.get("cortarName", "")
             if sigungu in cortar_name or cortar_name in sigungu:
                 code = region.get("cortarNo")
@@ -179,16 +181,16 @@ class NaverCrawler:
     # 단지 목록 수집
     # ──────────────────────────────────────────
 
-    async def _get_dong_list(self, sigungu_code: str) -> list[dict]:
+    async def _get_dong_list(self, sigungu_code: str) -> List[Dict]:
         """시/군/구 코드로 하위 읍/면/동 목록을 가져온다."""
-        data = await self.client.get_sub_regions(sigungu_code)
-        if not data:
+        regions = await self.client.get_sub_regions(sigungu_code)
+        if not regions:
             return []
-        return data.get("regionList", [])
+        return regions
 
-    async def _get_complexes_in_dong(self, dong_code: str) -> list[dict]:
+    async def _get_complexes_in_dong(self, dong_code: str) -> List[Dict]:
         """동 코드의 아파트 단지 목록을 모든 페이지에서 수집."""
-        all_complexes = []
+        all_complexes: List[Dict] = []
         page = 1
 
         while True:
@@ -215,9 +217,9 @@ class NaverCrawler:
     # 매물 수집
     # ──────────────────────────────────────────
 
-    async def _get_all_articles_for_complex(self, complex_no: str) -> list[dict]:
+    async def _get_all_articles_for_complex(self, complex_no: str) -> List[Dict]:
         """단지의 매매 매물을 모든 페이지에서 수집."""
-        all_articles = []
+        all_articles: List[Dict] = []
         page = 1
 
         while True:
@@ -249,7 +251,7 @@ class NaverCrawler:
     def _upsert_complex(
         self,
         db: Session,
-        complex_data: dict[str, Any],
+        complex_data: Dict[str, Any],
         sido: str,
         sigungu: str,
     ) -> Optional[ApartmentComplex]:
@@ -322,7 +324,7 @@ class NaverCrawler:
     def _upsert_listing(
         self,
         db: Session,
-        article: dict[str, Any],
+        article: Dict[str, Any],
         complex_obj: ApartmentComplex,
     ) -> Optional[Listing]:
         """매물 정보를 DB에 upsert."""
@@ -381,7 +383,7 @@ class NaverCrawler:
         self,
         db: Session,
         complex_id: int,
-        active_article_ids: set[str],
+        active_article_ids: Set[str],
     ):
         """API에서 더 이상 조회되지 않는 매물을 비활성화."""
         stale_listings = db.query(Listing).filter(
@@ -428,7 +430,7 @@ class NaverCrawler:
 
         self._stats["articles_found"] += len(articles)
         saved = 0
-        active_ids: set[str] = set()
+        active_ids: Set[str] = set()
 
         for article in articles:
             article_id = str(article.get("articleNo", ""))
@@ -525,7 +527,7 @@ class NaverCrawler:
 
         return self._stats.copy()
 
-    async def crawl_all_target_regions(self) -> list[dict]:
+    async def crawl_all_target_regions(self) -> List[Dict]:
         """설정된 모든 대상 지역을 순차적으로 크롤링.
 
         Returns:
@@ -563,4 +565,263 @@ class NaverCrawler:
                 })
 
         logger.info("전체 크롤링 완료: %d개 지역 처리", len(results))
+        return results
+
+    # ──────────────────────────────────────────
+    # 증분 크롤링 (Incremental)
+    # ──────────────────────────────────────────
+
+    def _get_active_listing_counts(
+        self,
+        db: Session,
+        complex_nos: List[str],
+    ) -> Dict[str, int]:
+        """DB에서 단지별 활성 매물 수를 조회.
+
+        Args:
+            db: DB 세션
+            complex_nos: 네이버 단지번호 리스트
+
+        Returns:
+            {naver_complex_no: 활성 매물 수} 딕셔너리
+        """
+        if not complex_nos:
+            return {}
+
+        # 단지번호 → complex_id 매핑 조회
+        rows = (
+            db.query(
+                ApartmentComplex.naver_complex_no,
+                sa_func.count(Listing.id),
+            )
+            .outerjoin(
+                Listing,
+                (Listing.complex_id == ApartmentComplex.id) & (Listing.is_active == True),  # noqa: E712
+            )
+            .filter(ApartmentComplex.naver_complex_no.in_(complex_nos))
+            .group_by(ApartmentComplex.naver_complex_no)
+            .all()
+        )
+        return {row[0]: row[1] for row in rows}
+
+    def _bulk_deactivate_listings(
+        self,
+        db: Session,
+        complex_nos: List[str],
+    ) -> int:
+        """dealCnt=0인 단지의 모든 활성 매물을 일괄 비활성화.
+
+        Args:
+            db: DB 세션
+            complex_nos: 비활성화 대상 단지번호 리스트
+
+        Returns:
+            비활성화된 매물 수
+        """
+        if not complex_nos:
+            return 0
+
+        # 해당 단지들의 complex_id 조회
+        complex_ids = [
+            row[0] for row in
+            db.query(ApartmentComplex.id)
+            .filter(ApartmentComplex.naver_complex_no.in_(complex_nos))
+            .all()
+        ]
+        if not complex_ids:
+            return 0
+
+        # 활성 매물 일괄 비활성화
+        count = (
+            db.query(Listing)
+            .filter(
+                Listing.complex_id.in_(complex_ids),
+                Listing.is_active == True,  # noqa: E712
+            )
+            .update({"is_active": False}, synchronize_session="fetch")
+        )
+        logger.info("일괄 비활성화: %d개 단지, %d개 매물", len(complex_nos), count)
+        return count
+
+    async def crawl_region_incremental(self, sido: str, sigungu: str) -> dict:
+        """증분 크롤링: 변화가 감지된 단지만 매물 상세 수집.
+
+        Phase 1: 동별 단지 목록 수집 (cheap, ~55 API 호출)
+        Phase 2: 200세대 미만 필터링
+        Phase 3: dealCnt=0 단지 매물 일괄 비활성화
+        Phase 4: dealCnt 변화 감지 → 대상만 상세 크롤링
+
+        Args:
+            sido: 시/도 이름
+            sigungu: 시/군/구 이름
+
+        Returns:
+            크롤링 통계 dict
+        """
+        logger.info("===== [증분] 크롤링 시작: %s %s =====", sido, sigungu)
+        self._reset_stats()
+        min_households = settings.MIN_HOUSEHOLD_COUNT
+
+        # Phase 1: 동별 단지 목록 수집
+        sigungu_code = await self._find_sigungu_code(sido, sigungu)
+        if not sigungu_code:
+            logger.error("[증분] 시/군/구 코드 못 찾음: %s %s", sido, sigungu)
+            return self._stats.copy()
+
+        dong_list = await self._get_dong_list(sigungu_code)
+        if not dong_list:
+            logger.warning("[증분] 동 목록 비어있음: %s %s", sido, sigungu)
+            return self._stats.copy()
+
+        logger.info("[증분] Phase 1: %d개 동에서 단지 목록 수집", len(dong_list))
+
+        # 전체 단지 목록 수집
+        all_complexes: List[Dict] = []
+        for dong_info in dong_list:
+            dong_code = dong_info.get("cortarNo", "")
+            complexes = await self._get_complexes_in_dong(dong_code)
+            all_complexes.extend(complexes)
+
+        self._stats["complexes_found"] = len(all_complexes)
+        logger.info("[증분] Phase 1 완료: 총 %d개 단지 발견", len(all_complexes))
+
+        # Phase 2: 200세대 미만 필터링
+        filtered = []
+        skipped_small = 0
+        for c in all_complexes:
+            household_count = c.get("totalHouseholdCount")
+            try:
+                household_count = int(household_count) if household_count else 0
+            except (ValueError, TypeError):
+                household_count = 0
+
+            if household_count < min_households:
+                skipped_small += 1
+                continue
+            filtered.append(c)
+
+        logger.info(
+            "[증분] Phase 2: %d세대 미만 %d개 스킵, %d개 대상",
+            min_households, skipped_small, len(filtered),
+        )
+
+        if not filtered:
+            return self._stats.copy()
+
+        # Phase 3 & 4: DB 비교 후 증분 크롤링
+        db = SessionLocal()
+        try:
+            # 단지번호별 dealCnt 맵
+            complex_deal_map: Dict[str, int] = {}
+            for c in filtered:
+                cno = str(c.get("complexNo", ""))
+                deal_cnt = c.get("dealCnt", 0)
+                try:
+                    deal_cnt = int(deal_cnt) if deal_cnt else 0
+                except (ValueError, TypeError):
+                    deal_cnt = 0
+                complex_deal_map[cno] = deal_cnt
+
+            all_complex_nos = list(complex_deal_map.keys())
+
+            # Phase 3: dealCnt=0 단지 일괄 비활성화
+            zero_deal_nos = [cno for cno, cnt in complex_deal_map.items() if cnt == 0]
+            if zero_deal_nos:
+                deactivated = self._bulk_deactivate_listings(db, zero_deal_nos)
+                logger.info(
+                    "[증분] Phase 3: dealCnt=0 → %d개 단지, %d개 매물 비활성화",
+                    len(zero_deal_nos), deactivated,
+                )
+
+            # Phase 4: dealCnt 변화 감지
+            nonzero_nos = [cno for cno, cnt in complex_deal_map.items() if cnt > 0]
+            db_counts = self._get_active_listing_counts(db, nonzero_nos)
+
+            # 크롤링 대상: DB에 없거나, dealCnt != DB 활성 매물 수
+            crawl_targets = []
+            skipped_same = 0
+            for cno in nonzero_nos:
+                api_deal_cnt = complex_deal_map[cno]
+                db_active_cnt = db_counts.get(cno, -1)  # -1 = DB에 없음
+
+                if api_deal_cnt == db_active_cnt:
+                    skipped_same += 1
+                    continue
+                crawl_targets.append(cno)
+
+            logger.info(
+                "[증분] Phase 4: dealCnt 동일 %d개 스킵, %d개 상세 크롤링 대상",
+                skipped_same, len(crawl_targets),
+            )
+
+            # 대상 단지만 상세 크롤링
+            # 단지번호 → 단지 데이터 맵 생성
+            complex_data_map = {str(c.get("complexNo", "")): c for c in filtered}
+
+            for cno in crawl_targets:
+                complex_data = complex_data_map.get(cno)
+                if not complex_data:
+                    continue
+                try:
+                    await self.crawl_complex(db, complex_data, sido, sigungu)
+                except Exception as e:
+                    self._stats["errors"] += 1
+                    logger.error(
+                        "[증분] 단지 크롤링 실패 (%s): %s",
+                        complex_data.get("complexName", "?"), str(e),
+                        exc_info=True,
+                    )
+
+            db.commit()
+            logger.info(
+                "===== [증분] 크롤링 완료: %s %s =====\n"
+                "  전체 단지: %d, 세대수 필터: -%d, dealCnt=0: -%d, 변화 없음: -%d\n"
+                "  실제 크롤링: %d개 단지, 매물 발견: %d, 저장: %d, 에러: %d",
+                sido, sigungu,
+                len(all_complexes), skipped_small, len(zero_deal_nos), skipped_same,
+                len(crawl_targets),
+                self._stats["articles_found"],
+                self._stats["articles_saved"],
+                self._stats["errors"],
+            )
+
+        except Exception as e:
+            db.rollback()
+            logger.error("[증분] 치명적 에러: %s", str(e), exc_info=True)
+            raise
+        finally:
+            db.close()
+
+        return self._stats.copy()
+
+    async def crawl_all_target_regions_incremental(self) -> List[Dict]:
+        """설정된 모든 대상 지역을 증분 크롤링.
+
+        Returns:
+            지역별 크롤링 통계 리스트
+        """
+        results = []
+
+        if not self.target_regions:
+            logger.warning("[증분] 크롤링 대상 지역이 설정되지 않음")
+            return results
+
+        logger.info("[증분] 전체 증분 크롤링 시작: %d개 지역", len(self.target_regions))
+
+        for region in self.target_regions:
+            sido = region.get("sido", "")
+            sigungu = region.get("sigungu", "")
+
+            if not sido or not sigungu:
+                logger.warning("[증분] 잘못된 지역 설정: %s", region)
+                continue
+
+            try:
+                stats = await self.crawl_region_incremental(sido, sigungu)
+                results.append({"sido": sido, "sigungu": sigungu, **stats})
+            except Exception as e:
+                logger.error("[증분] 지역 크롤링 실패 (%s %s): %s", sido, sigungu, str(e))
+                results.append({"sido": sido, "sigungu": sigungu, "error": str(e)})
+
+        logger.info("[증분] 전체 증분 크롤링 완료: %d개 지역 처리", len(results))
         return results
