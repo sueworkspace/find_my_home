@@ -86,24 +86,49 @@ def _parse_area(area_str: Union[str, float, None]) -> Optional[float]:
 
 
 def _parse_floor(floor_str: Union[str, int, None]) -> Optional[int]:
-    """층수 문자열을 정수로 변환."""
+    """층수 문자열을 정수로 변환.
+
+    예시:
+        '15' -> 15, '15층' -> 15
+        '저' -> None, '고' -> None, '중' -> None
+        '15/20' -> 15 (슬래시 앞이 해당 층)
+    """
     if floor_str is None:
         return None
+    s = str(floor_str).replace("층", "").strip()
+    # "저/16", "고/20" 등 한글 층 표현 → None
+    if s in ("저", "중", "고", ""):
+        return None
     try:
-        # '15층' -> 15, '15' -> 15
-        return int(str(floor_str).replace("층", "").strip())
+        return int(s)
     except (ValueError, TypeError):
         return None
 
 
 def _parse_datetime(date_str: Optional[str]) -> Optional[datetime]:
-    """날짜 문자열을 datetime으로 변환."""
+    """날짜 문자열을 datetime으로 변환.
+
+    예시:
+        '20260215' -> 2026-02-15
+        '2026-02-15' -> 2026-02-15
+        '2026.02.15' -> 2026-02-15
+        '26.02.14' -> 2026-02-14 (YY.MM.DD 2자리 연도)
+    """
     if not date_str:
         return None
-    # 네이버 API 날짜 형식: "20260215" 또는 "2026-02-15" 또는 "2026.02.15"
-    date_str = date_str.strip().replace(".", "").replace("-", "")
+    date_str = date_str.strip()
+
+    # "26.02.14" 형식 (YY.MM.DD) — 네이버 모바일 API cfmYmd
+    if len(date_str) == 8 and date_str[2] == "." and date_str[5] == ".":
+        try:
+            return datetime.strptime(date_str, "%y.%m.%d")
+        except ValueError:
+            pass
+
+    # 구분자 제거 후 YYYYMMDD 파싱
+    cleaned = date_str.replace(".", "").replace("-", "")
     try:
-        return datetime.strptime(date_str, "%Y%m%d")
+        return datetime.strptime(cleaned, "%Y%m%d")
     except ValueError:
         return None
 
@@ -685,25 +710,9 @@ class NaverCrawler:
         self._stats["complexes_found"] = len(all_complexes)
         logger.info("[증분] Phase 1 완료: 총 %d개 단지 발견", len(all_complexes))
 
-        # Phase 2: 200세대 미만 필터링
-        filtered = []
-        skipped_small = 0
-        for c in all_complexes:
-            household_count = c.get("totalHouseholdCount")
-            try:
-                household_count = int(household_count) if household_count else 0
-            except (ValueError, TypeError):
-                household_count = 0
-
-            if household_count < min_households:
-                skipped_small += 1
-                continue
-            filtered.append(c)
-
-        logger.info(
-            "[증분] Phase 2: %d세대 미만 %d개 스킵, %d개 대상",
-            min_households, skipped_small, len(filtered),
-        )
+        # Phase 2: 세대수 필터 비활성화 (API에서 세대수 미제공)
+        filtered = all_complexes
+        logger.info("[증분] Phase 2: 필터 없이 %d개 전체 대상", len(filtered))
 
         if not filtered:
             return self._stats.copy()

@@ -41,6 +41,7 @@ class NaverLandClient:
     def __init__(self):
         self._client: Optional[httpx.AsyncClient] = None
         self._delay = settings.CRAWLER_DELAY_SECONDS
+        self.api_call_count: int = 0  # 배치 쿨다운용 API 호출 카운터
 
     async def _get_client(self) -> httpx.AsyncClient:
         """lazy-init으로 AsyncClient 생성."""
@@ -75,6 +76,7 @@ class NaverLandClient:
                 logger.debug("요청 [%d/%d]: %s params=%s", attempt, MAX_RETRIES, url, params)
                 response = await client.get(url, params=params)
 
+                self.api_call_count += 1  # 모든 요청 카운트 (차단 감지용)
                 if response.status_code == 200:
                     return response.json()
 
@@ -327,12 +329,12 @@ class NaverLandClient:
             articles.append({
                 "articleNo": item.get("atclNo", ""),
                 "articleName": item.get("atclNm", ""),
-                "dealOrWarrantPrc": item.get("dealOrWarrantPrc", ""),
+                "dealOrWarrantPrc": item.get("prcInfo", ""),
                 "area1": item.get("spc1"),  # 공급면적
                 "area2": item.get("spc2"),  # 전용면적
                 "floorInfo": item.get("flrInfo", ""),
                 "buildingName": item.get("bildNm", ""),
-                "articleConfirmYmd": item.get("atclCfmYmd", ""),
+                "articleConfirmYmd": item.get("cfmYmd", ""),
                 "direction": item.get("direction", ""),
             })
 

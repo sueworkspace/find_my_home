@@ -10,6 +10,8 @@ from app.api.regions import router as regions_router
 from app.api.listings import router as listings_router
 from app.api.transactions import router as transactions_router
 from app.api.comparisons import router as comparisons_router
+from app.models.database import engine, Base
+from app.models.apartment import ApartmentComplex, Listing, KBPrice, RealTransaction, PriceComparison  # noqa: F401
 from app.crawler.scheduler import start_scheduler, stop_scheduler
 
 # 로깅 설정
@@ -52,11 +54,8 @@ app.include_router(comparisons_router)
 # -----------------------------------------------------------
 @app.on_event("startup")
 async def on_startup():
-    """서버 시작 시 데이터 수집 스케줄러를 등록합니다.
-
-    - 전체 파이프라인 (네이버→KB→비교): 60분 간격
-    - 실거래가: 매일 새벽 2시
-    """
+    """서버 시작 시 DB 테이블 생성 후 스케줄러를 등록합니다."""
+    Base.metadata.create_all(bind=engine)
     start_scheduler()
 
 
