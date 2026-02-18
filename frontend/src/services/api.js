@@ -67,6 +67,40 @@ export async function getSigunguList(sido) {
  * @param {number} [options.minDiscount] - 최소 할인율 (0 이상이면 급매만 조회)
  * @returns {Promise<Array>} 매물 객체 배열
  */
+/* ─── 대시보드 API ─── */
+
+/**
+ * DB 요약 통계 조회
+ * @returns {Promise<Object>} 단지수, 매물수, KB시세, 급매 등 통계
+ */
+export async function getDashboardSummary() {
+  const response = await fetch(`${API_BASE_URL}/dashboard/summary`);
+  if (!response.ok) throw new Error('대시보드 요약을 불러오는 데 실패했습니다.');
+  return convertKeys(await response.json());
+}
+
+/**
+ * 스케줄러 상태 조회
+ * @returns {Promise<Object>} 스케줄러 실행 여부 및 잡 목록
+ */
+export async function getSchedulerStatus() {
+  const response = await fetch(`${API_BASE_URL}/dashboard/scheduler`);
+  if (!response.ok) throw new Error('스케줄러 상태를 불러오는 데 실패했습니다.');
+  return convertKeys(await response.json());
+}
+
+/**
+ * 지역별 통계 조회
+ * @returns {Promise<Object>} 지역별 단지수, 매물수, KB시세, 급매 통계
+ */
+export async function getRegionBreakdown() {
+  const response = await fetch(`${API_BASE_URL}/dashboard/regions`);
+  if (!response.ok) throw new Error('지역별 통계를 불러오는 데 실패했습니다.');
+  return convertKeys(await response.json());
+}
+
+/* ─── 매물 API ─── */
+
 export async function getListings(sido, sigungu, options = {}) {
   const params = new URLSearchParams({ sido, sigungu, size: '100' });
 

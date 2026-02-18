@@ -1,0 +1,282 @@
+/* ===================================================================
+ * Dashboard 스타일 (Dashboard.css)
+ * - 크롤링 대시보드: 통계 카드, 스케줄러 상태, 지역 테이블
+ * - Mobile First: 2열 → 3열 → 6열 그리드
+ * =================================================================== */
+
+/* === 대시보드 컨테이너 === */
+.dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+/* === 섹션 공통 === */
+.dashboard__section {
+  background: var(--color-white);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-md);
+}
+
+.dashboard__section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.dashboard__section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--color-gray-800);
+}
+
+/* === 새로고침 버튼 === */
+.dashboard__refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  background: var(--color-primary);
+  color: var(--color-white);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.dashboard__refresh-btn:hover {
+  background: var(--color-primary-dark);
+}
+
+.dashboard__refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dashboard__refresh-icon {
+  display: inline-block;
+  transition: transform 0.3s;
+}
+
+.dashboard__refresh-icon--spinning {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* === 자동 새로고침 타이머 === */
+.dashboard__timer {
+  font-size: 0.6875rem;
+  color: var(--color-gray-500);
+  text-align: right;
+}
+
+/* === 통계 카드 그리드 === */
+.dashboard__cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+.dashboard__card {
+  background: var(--color-gray-50);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  text-align: center;
+}
+
+.dashboard__card-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  line-height: 1.2;
+}
+
+.dashboard__card-value--accent {
+  color: #e74c3c;
+}
+
+.dashboard__card-label {
+  font-size: 0.6875rem;
+  color: var(--color-gray-600);
+  margin-top: 2px;
+}
+
+.dashboard__card-sub {
+  font-size: 0.625rem;
+  color: var(--color-gray-400);
+  margin-top: 2px;
+}
+
+/* === 스케줄러 === */
+.dashboard__scheduler-status {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-sm);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.dashboard__status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dashboard__status-dot--running {
+  background: #27ae60;
+  box-shadow: 0 0 4px rgba(39, 174, 96, 0.5);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.dashboard__status-dot--stopped {
+  background: #e74c3c;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.dashboard__job-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.dashboard__job-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--color-gray-50);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+}
+
+.dashboard__job-name {
+  font-weight: 600;
+  color: var(--color-gray-800);
+}
+
+.dashboard__job-detail {
+  color: var(--color-gray-500);
+}
+
+/* === 지역 테이블 === */
+.dashboard__table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.dashboard__table th {
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  font-weight: 600;
+  padding: var(--space-xs) var(--space-sm);
+  text-align: left;
+  border-bottom: 2px solid var(--color-gray-200);
+  cursor: pointer;
+  user-select: none;
+  position: sticky;
+  top: 0;
+}
+
+.dashboard__table th:hover {
+  background: var(--color-gray-200);
+}
+
+.dashboard__table td {
+  padding: var(--space-xs) var(--space-sm);
+  border-bottom: 1px solid var(--color-gray-100);
+  color: var(--color-gray-700);
+}
+
+.dashboard__table tr:hover td {
+  background: var(--color-gray-50);
+}
+
+/* 숫자 컬럼 우측 정렬 */
+.dashboard__table td:nth-child(n+3) {
+  text-align: right;
+}
+
+.dashboard__table th:nth-child(n+3) {
+  text-align: right;
+}
+
+/* 정렬 화살표 */
+.dashboard__sort-arrow {
+  margin-left: 4px;
+  font-size: 0.625rem;
+}
+
+/* === 에러/로딩 상태 === */
+.dashboard__loading,
+.dashboard__error {
+  text-align: center;
+  padding: var(--space-xl);
+  color: var(--color-gray-500);
+  font-size: 0.875rem;
+}
+
+.dashboard__error {
+  color: #e74c3c;
+}
+
+/* === 태블릿 (768px~) === */
+@media (min-width: 768px) {
+  .dashboard__cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+  }
+
+  .dashboard__card {
+    padding: var(--space-md);
+  }
+
+  .dashboard__card-value {
+    font-size: 1.75rem;
+  }
+
+  .dashboard__card-label {
+    font-size: 0.75rem;
+  }
+
+  .dashboard__table {
+    font-size: 0.8125rem;
+  }
+
+  .dashboard__job-item {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-md);
+  }
+}
+
+/* === 데스크톱 (1024px~) === */
+@media (min-width: 1024px) {
+  .dashboard__cards {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .dashboard__section {
+    padding: var(--space-lg);
+  }
+}

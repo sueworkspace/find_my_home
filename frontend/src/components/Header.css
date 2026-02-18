@@ -1,6 +1,7 @@
 /* ===================================================================
  * Header 스타일 (Header.css)
  * - 상단 고정 헤더, 그라데이션 배경
+ * - 탭 네비게이션 (매물 목록 / 크롤링 대시보드)
  * - Mobile First: 모바일에서 세로 배치 → 데스크톱에서 가로 배치
  * =================================================================== */
 
@@ -8,7 +9,7 @@
   background: linear-gradient(135deg, var(--color-primary-dark) 0%, var(--color-primary) 50%, var(--color-primary-light) 100%);
   color: var(--color-white);
   /* 모바일 기본: 작은 패딩 */
-  padding: var(--space-sm) var(--space-md);
+  padding: var(--space-sm) var(--space-md) 0;
   box-shadow: var(--shadow-md);
   position: sticky;
   top: 0;
@@ -23,6 +24,7 @@
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-xs);
+  padding-bottom: var(--space-sm);
 }
 
 /* 로고 영역 */
@@ -52,10 +54,45 @@
   font-weight: 400;
 }
 
+/* === 탭 네비게이션 === */
+.header__nav {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.header__nav-inner {
+  display: flex;
+  gap: 0;
+}
+
+.header__tab {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: var(--space-xs) var(--space-md);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.header__tab:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.header__tab--active {
+  color: var(--color-white);
+  font-weight: 700;
+  border-bottom-color: #FFD700;
+}
+
 /* === 태블릿 이상 (768px~): 가로 배치로 전환 === */
 @media (min-width: 768px) {
   .header {
-    padding: var(--space-md) var(--space-xl);
+    padding: var(--space-md) var(--space-xl) 0;
   }
 
   .header__inner {
@@ -75,5 +112,10 @@
 
   .header__subtitle {
     font-size: 0.875rem;
+  }
+
+  .header__tab {
+    font-size: 0.875rem;
+    padding: var(--space-sm) var(--space-md);
   }
 }

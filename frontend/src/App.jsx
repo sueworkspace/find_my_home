@@ -2,7 +2,8 @@
  * App 컴포넌트 (최상위)
  *
  * 역할:
- * - 전체 앱 레이아웃 구성 (Header, RegionSelector, Filters, ListingsTable)
+ * - 전체 앱 레이아웃 구성 (Header, RegionSelector, Filters, ListingsTable, Dashboard)
+ * - 탭 전환: 매물 목록 ↔ 크롤링 대시보드
  * - 지역 선택 → API 호출 → 매물 목록 관리
  * - 필터 상태 관리 및 매물 필터링 로직
  * - 로딩/에러/빈 상태에 따른 렌더링 분기
@@ -14,6 +15,7 @@ import Filters from './components/Filters';
 import ListingsTable from './components/ListingsTable';
 import EmptyState from './components/EmptyState';
 import LoadingSpinner from './components/LoadingSpinner';
+import Dashboard from './components/Dashboard';
 import { getListings } from './services/api';
 import './App.css';
 
@@ -32,6 +34,7 @@ const DEFAULT_FILTERS = {
 
 export default function App() {
   /* === 상태 관리 === */
+  const [activeView, setActiveView] = useState('listings'); // 탭 전환 상태
   const [listings, setListings] = useState([]);        // 원본 매물 목록
   const [loading, setLoading] = useState(false);        // 로딩 상태
   const [error, setError] = useState(null);             // 에러 상태
@@ -143,39 +146,51 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* 헤더: 앱 타이틀 및 설명 */}
-      <Header />
+      {/* 헤더: 앱 타이틀 + 탭 네비게이션 */}
+      <Header activeView={activeView} onViewChange={setActiveView} />
 
       <main className="app__main">
         <div className="app__container">
-          {/* 지역 선택기 */}
-          <section className="app__section">
-            <RegionSelector onRegionChange={handleRegionChange} />
-          </section>
+          {/* 매물 목록 뷰 */}
+          {activeView === 'listings' && (
+            <>
+              {/* 지역 선택기 */}
+              <section className="app__section">
+                <RegionSelector onRegionChange={handleRegionChange} />
+              </section>
 
-          {/* 선택된 지역 라벨 표시 */}
-          {selectedRegion.sido && selectedRegion.sigungu && (
-            <div className="app__region-label">
-              {selectedRegion.sido} {selectedRegion.sigungu}
-            </div>
+              {/* 선택된 지역 라벨 표시 */}
+              {selectedRegion.sido && selectedRegion.sigungu && (
+                <div className="app__region-label">
+                  {selectedRegion.sido} {selectedRegion.sigungu}
+                </div>
+              )}
+
+              {/* 필터 패널: 매물이 있을 때만 표시 */}
+              {regionSelected && listings.length > 0 && (
+                <section className="app__section">
+                  <Filters
+                    filters={filters}
+                    onFilterChange={setFilters}
+                    totalCount={listings.length}
+                    filteredCount={filteredListings.length}
+                  />
+                </section>
+              )}
+
+              {/* 메인 컨텐츠: 테이블 / 로딩 / 빈 상태 / 에러 */}
+              <section className="app__section app__section--content">
+                {renderContent()}
+              </section>
+            </>
           )}
 
-          {/* 필터 패널: 매물이 있을 때만 표시 */}
-          {regionSelected && listings.length > 0 && (
+          {/* 크롤링 대시보드 뷰 */}
+          {activeView === 'dashboard' && (
             <section className="app__section">
-              <Filters
-                filters={filters}
-                onFilterChange={setFilters}
-                totalCount={listings.length}
-                filteredCount={filteredListings.length}
-              />
+              <Dashboard />
             </section>
           )}
-
-          {/* 메인 컨텐츠: 테이블 / 로딩 / 빈 상태 / 에러 */}
-          <section className="app__section app__section--content">
-            {renderContent()}
-          </section>
         </div>
       </main>
 

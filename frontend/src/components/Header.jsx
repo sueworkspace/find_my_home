@@ -4,11 +4,12 @@
  * 역할:
  * - 앱 상단에 고정(sticky) 표시되는 헤더
  * - 로고 아이콘 + 앱 이름 + 서비스 설명 구성
+ * - 탭 네비게이션: 매물 목록 ↔ 크롤링 대시보드 전환
  * - 모바일에서는 세로 배치, 데스크톱에서는 가로 배치
  */
 import './Header.css';
 
-export default function Header() {
+export default function Header({ activeView = 'listings', onViewChange }) {
   return (
     <header className="header">
       <div className="header__inner">
@@ -35,6 +36,26 @@ export default function Header() {
         {/* 서비스 설명 */}
         <p className="header__subtitle">KB시세 대비 급매물 탐지 서비스</p>
       </div>
+
+      {/* 탭 네비게이션 */}
+      {onViewChange && (
+        <nav className="header__nav">
+          <div className="header__nav-inner">
+            <button
+              className={`header__tab ${activeView === 'listings' ? 'header__tab--active' : ''}`}
+              onClick={() => onViewChange('listings')}
+            >
+              매물 목록
+            </button>
+            <button
+              className={`header__tab ${activeView === 'dashboard' ? 'header__tab--active' : ''}`}
+              onClick={() => onViewChange('dashboard')}
+            >
+              크롤링 대시보드
+            </button>
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

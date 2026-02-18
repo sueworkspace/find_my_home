@@ -10,6 +10,7 @@ from app.api.regions import router as regions_router
 from app.api.listings import router as listings_router
 from app.api.transactions import router as transactions_router
 from app.api.comparisons import router as comparisons_router
+from app.api.dashboard import router as dashboard_router
 from app.models.database import engine, Base
 from app.models.apartment import ApartmentComplex, Listing, KBPrice, RealTransaction, PriceComparison  # noqa: F401
 from app.crawler.scheduler import start_scheduler, stop_scheduler
@@ -47,6 +48,7 @@ app.include_router(regions_router)
 app.include_router(listings_router)
 app.include_router(transactions_router)
 app.include_router(comparisons_router)
+app.include_router(dashboard_router)
 
 
 # -----------------------------------------------------------
