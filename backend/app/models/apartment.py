@@ -15,6 +15,7 @@ class ApartmentComplex(Base):
     sido = Column(String(20), nullable=False, index=True)
     sigungu = Column(String(20), nullable=False, index=True)
     dong = Column(String(20))
+    dong_code = Column(String(10))  # 법정동코드 10자리 (KB시세 조회에 사용)
     total_units = Column(Integer)
     built_year = Column(Integer)
     lat = Column(Float)

@@ -279,6 +279,8 @@ class NaverCrawler:
         complex_data: Dict[str, Any],
         sido: str,
         sigungu: str,
+        dong_name: str = "",
+        dong_code: str = "",
     ) -> Optional[ApartmentComplex]:
         """단지 정보를 DB에 upsert (insert or update)."""
         complex_no = str(complex_data.get("complexNo", ""))
@@ -291,7 +293,8 @@ class NaverCrawler:
 
         name = complex_data.get("complexName", "")
         address = complex_data.get("address", "")
-        dong = complex_data.get("cortarAddress", "")
+        # dong_name 우선 사용 (크롤링 루프에서 전달), fallback: API의 cortarAddress
+        dong = dong_name or complex_data.get("cortarAddress", "")
         total_units = complex_data.get("totalHouseholdCount")
         built_year = complex_data.get("useApproveYmd", "")
         lat = complex_data.get("latitude")
@@ -319,6 +322,8 @@ class NaverCrawler:
             existing.sido = sido
             existing.sigungu = sigungu
             existing.dong = dong or existing.dong
+            if dong_code:
+                existing.dong_code = dong_code
             if total_units:
                 existing.total_units = total_units
             if built_year:
@@ -337,6 +342,7 @@ class NaverCrawler:
                 sido=sido,
                 sigungu=sigungu,
                 dong=dong,
+                dong_code=dong_code or None,
                 total_units=total_units,
                 built_year=built_year,
                 lat=float(lat) if lat else None,
@@ -431,8 +437,14 @@ class NaverCrawler:
         complex_data: dict,
         sido: str,
         sigungu: str,
+        dong_name: str = "",
+        dong_code: str = "",
     ) -> int:
         """단일 단지의 매물을 크롤링하여 DB에 저장.
+
+        Args:
+            dong_name: 동 이름 (크롤링 루프에서 전달)
+            dong_code: 법정동코드 10자리 (KB시세 조회용)
 
         Returns:
             저장된 매물 수
@@ -441,7 +453,7 @@ class NaverCrawler:
         complex_name = complex_data.get("complexName", "알 수 없음")
 
         # 단지 정보 upsert
-        complex_obj = self._upsert_complex(db, complex_data, sido, sigungu)
+        complex_obj = self._upsert_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
         if not complex_obj:
             return 0
 
@@ -521,7 +533,7 @@ class NaverCrawler:
 
                 for complex_data in complexes:
                     try:
-                        await self.crawl_complex(db, complex_data, sido, sigungu)
+                        await self.crawl_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
                     except Exception as e:
                         self._stats["errors"] += 1
                         complex_name = complex_data.get("complexName", "?")
@@ -700,11 +712,15 @@ class NaverCrawler:
 
         logger.info("[증분] Phase 1: %d개 동에서 단지 목록 수집", len(dong_list))
 
-        # 전체 단지 목록 수집
+        # 전체 단지 목록 수집 (각 단지에 동 이름/코드 첨부)
         all_complexes: List[Dict] = []
         for dong_info in dong_list:
-            dong_code = dong_info.get("cortarNo", "")
-            complexes = await self._get_complexes_in_dong(dong_code)
+            d_code = dong_info.get("cortarNo", "")
+            d_name = dong_info.get("cortarName", "")
+            complexes = await self._get_complexes_in_dong(d_code)
+            for c in complexes:
+                c["_dong_name"] = d_name   # 동 이름
+                c["_dong_code"] = d_code   # 법정동코드 (KB시세 조회용)
             all_complexes.extend(complexes)
 
         self._stats["complexes_found"] = len(all_complexes)
@@ -772,7 +788,9 @@ class NaverCrawler:
                 if not complex_data:
                     continue
                 try:
-                    await self.crawl_complex(db, complex_data, sido, sigungu)
+                    dong_name = complex_data.get("_dong_name", "")
+                    dong_code = complex_data.get("_dong_code", "")
+                    await self.crawl_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
                 except Exception as e:
                     self._stats["errors"] += 1
                     logger.error(
@@ -784,10 +802,10 @@ class NaverCrawler:
             db.commit()
             logger.info(
                 "===== [증분] 크롤링 완료: %s %s =====\n"
-                "  전체 단지: %d, 세대수 필터: -%d, dealCnt=0: -%d, 변화 없음: -%d\n"
+                "  전체 단지: %d, dealCnt=0: -%d, 변화 없음: -%d\n"
                 "  실제 크롤링: %d개 단지, 매물 발견: %d, 저장: %d, 에러: %d",
                 sido, sigungu,
-                len(all_complexes), skipped_small, len(zero_deal_nos), skipped_same,
+                len(all_complexes), len(zero_deal_nos), skipped_same,
                 len(crawl_targets),
                 self._stats["articles_found"],
                 self._stats["articles_saved"],

@@ -467,11 +467,12 @@ class KBPriceClient:
         sido: str = "서울특별시",
         sigungu: str = "",
         dong: Optional[str] = None,
+        dong_code: Optional[str] = None,
         address: Optional[str] = None,
     ) -> Tuple[Optional[str], List[Dict[str, Any]]]:
         """네이버 단지명으로 KB 단지를 매칭하고 시세를 한번에 조회한다.
 
-        1) sido + sigungu + dong → 동-level 법정동코드 조회
+        1) dong_code가 있으면 직접 사용, 없으면 sido+sigungu+dong으로 조회
         2) match_complex로 KB 단지 매칭
         3) get_all_prices로 전체 면적별 시세 조회
 
@@ -480,14 +481,15 @@ class KBPriceClient:
             sido: 시/도 (예: "서울특별시")
             sigungu: 시/군/구 (예: "강남구")
             dong: 동 이름 (예: "대치동") - 동-level 코드 조회에 사용
+            dong_code: 법정동코드 10자리 (DB에서 전달, 우선 사용)
             address: 주소 (미사용, 호환성 유지)
 
         Returns:
             (kb_complex_id 문자열, 면적별 시세 리스트) 튜플.
             매칭 실패 시 (None, [])
         """
-        # 법정동코드 조회 (동-level 우선, fallback 구-level)
-        lawdcd = get_lawdcd(sido, sigungu, dong)
+        # 법정동코드 조회: dong_code 우선, fallback: 동 이름 → DONG_LAWDCD_MAP
+        lawdcd = dong_code or get_lawdcd(sido, sigungu, dong)
         if not lawdcd:
             logger.warning("법정동코드 없음: %s %s %s", sido, sigungu, dong or "")
             return None, []

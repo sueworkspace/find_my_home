@@ -84,12 +84,15 @@ class KBPriceService:
             complex_obj.id, complex_name, sido, sigungu, dong or "",
         )
 
-        # 1) KB 단지 매칭 및 시세 조회 (sido+sigungu+dong → 동-level 법정동코드 → KB매칭)
+        # 1) KB 단지 매칭 및 시세 조회
+        # dong_code가 있으면 직접 사용 (DONG_LAWDCD_MAP 불필요)
+        dong_code = getattr(complex_obj, 'dong_code', None)
         hcpc_no, prices = await self._client.get_prices_for_complex(
             complex_name=complex_name,
             sido=sido,
             sigungu=sigungu,
             dong=dong,
+            dong_code=dong_code,
         )
 
         if hcpc_no is None:
