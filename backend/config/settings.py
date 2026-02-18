@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"  # .env의 WP_* 등 미정의 변수 무시
 
 
 settings = Settings()
