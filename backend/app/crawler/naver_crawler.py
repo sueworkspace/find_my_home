@@ -5,6 +5,7 @@
 각 단지의 매매 매물을 수집하여 DB에 저장합니다.
 """
 
+import asyncio
 import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set, Union
@@ -169,6 +170,45 @@ class NaverCrawler:
         """통계 초기화."""
         for key in self._stats:
             self._stats[key] = 0
+
+    async def _check_cooldown(self, context: str = "") -> None:
+        """API 호출 한도 도달 시 쿨다운 대기.
+
+        self.client.api_call_count가 BATCH_API_CALL_LIMIT에 도달하면
+        BATCH_COOLDOWN_SECONDS 동안 대기 후 카운터를 리셋합니다.
+
+        Args:
+            context: 로그에 표시할 컨텍스트 문자열 (예: "Phase 1", "Phase 4")
+        """
+        limit = settings.BATCH_API_CALL_LIMIT
+        cooldown = settings.BATCH_COOLDOWN_SECONDS
+
+        if self.client.api_call_count >= limit:
+            logger.warning(
+                "[쿨다운] %s: API 호출 %d회 도달 (한도 %d). %d초 대기 시작...",
+                context, self.client.api_call_count, limit, cooldown,
+            )
+            await asyncio.sleep(cooldown)
+            self.client.api_call_count = 0
+            logger.info("[쿨다운] %s: 쿨다운 완료, 카운터 리셋", context)
+
+    async def _trigger_abuse_cooldown(self, context: str = "") -> None:
+        """Abuse 감지 시 즉시 쿨다운 트리거.
+
+        네이버 API가 /error/abuse로 리다이렉트하여 None을 반환한 경우
+        즉시 BATCH_COOLDOWN_SECONDS 대기 후 카운터를 리셋합니다.
+
+        Args:
+            context: 로그에 표시할 컨텍스트 문자열
+        """
+        cooldown = settings.BATCH_COOLDOWN_SECONDS
+        logger.warning(
+            "[쿨다운] %s: abuse 감지! API 호출 %d회 시점. %d초 즉시 대기...",
+            context, self.client.api_call_count, cooldown,
+        )
+        await asyncio.sleep(cooldown)
+        self.client.api_call_count = 0
+        logger.info("[쿨다운] %s: abuse 쿨다운 완료, 카운터 리셋", context)
 
     # ──────────────────────────────────────────
     # 지역 코드 탐색
@@ -717,7 +757,22 @@ class NaverCrawler:
         for dong_info in dong_list:
             d_code = dong_info.get("cortarNo", "")
             d_name = dong_info.get("cortarName", "")
+
+            # Phase 1 쿨다운: 동이 많은 지역에서 단지 목록 수집만으로도 한도 도달 가능
+            await self._check_cooldown(context="Phase 1 동별 단지수집")
+
+            count_before = self.client.api_call_count
             complexes = await self._get_complexes_in_dong(d_code)
+
+            # abuse 감지: 결과가 비어있고 API 호출이 한도 근처면 abuse 가능성
+            # (_get_complexes_in_dong은 항상 list 반환, abuse 시 빈 리스트)
+            if not complexes and count_before >= settings.BATCH_API_CALL_LIMIT * 0.8:
+                await self._trigger_abuse_cooldown(context="Phase 1 동별 단지수집")
+                complexes = await self._get_complexes_in_dong(d_code)
+                if not complexes:
+                    logger.warning("[증분] Phase 1: 동 %s 재시도 후에도 단지 목록 없음, 스킵", d_name)
+                    continue
+
             for c in complexes:
                 c["_dong_name"] = d_name   # 동 이름
                 c["_dong_code"] = d_code   # 법정동코드 (KB시세 조회용)
@@ -726,9 +781,24 @@ class NaverCrawler:
         self._stats["complexes_found"] = len(all_complexes)
         logger.info("[증분] Phase 1 완료: 총 %d개 단지 발견", len(all_complexes))
 
-        # Phase 2: 세대수 필터 비활성화 (API에서 세대수 미제공)
-        filtered = all_complexes
-        logger.info("[증분] Phase 2: 필터 없이 %d개 전체 대상", len(filtered))
+        # Phase 2: 200세대 미만 필터링
+        # totalHouseholdCount가 None이면 필터 대상이 아닌 것으로 간주 (API 미제공)
+        filtered = []
+        skipped_small = 0
+        for c in all_complexes:
+            household = c.get("totalHouseholdCount")
+            if household is not None:
+                try:
+                    if int(household) < min_households:
+                        skipped_small += 1
+                        continue
+                except (ValueError, TypeError):
+                    pass  # 파싱 불가 → 필터 안 함
+            filtered.append(c)
+        logger.info(
+            "[증분] Phase 2: %d개 중 %d개 세대수 미달 스킵, %d개 대상",
+            len(all_complexes), skipped_small, len(filtered),
+        )
 
         if not filtered:
             return self._stats.copy()
@@ -783,14 +853,30 @@ class NaverCrawler:
             # 단지번호 → 단지 데이터 맵 생성
             complex_data_map = {str(c.get("complexNo", "")): c for c in filtered}
 
-            for cno in crawl_targets:
+            for idx, cno in enumerate(crawl_targets):
                 complex_data = complex_data_map.get(cno)
                 if not complex_data:
                     continue
+
+                # Phase 4 쿨다운: 180건 API 호출마다 10분 대기
+                await self._check_cooldown(
+                    context="Phase 4 상세크롤링 (%d/%d)" % (idx + 1, len(crawl_targets))
+                )
+
                 try:
                     dong_name = complex_data.get("_dong_name", "")
                     dong_code = complex_data.get("_dong_code", "")
-                    await self.crawl_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
+                    count_before = self.client.api_call_count
+                    saved = await self.crawl_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
+
+                    # abuse 감지: dealCnt>0인데 매물 0건이고 API 호출이 한도 근처면 abuse 가능성
+                    api_deal_cnt = complex_deal_map.get(cno, 0)
+                    if saved == 0 and api_deal_cnt > 0 and count_before >= settings.BATCH_API_CALL_LIMIT * 0.8:
+                        await self._trigger_abuse_cooldown(
+                            context="Phase 4 상세크롤링 (%d/%d)" % (idx + 1, len(crawl_targets))
+                        )
+                        # abuse 쿨다운 후 해당 단지 재시도
+                        await self.crawl_complex(db, complex_data, sido, sigungu, dong_name=dong_name, dong_code=dong_code)
                 except Exception as e:
                     self._stats["errors"] += 1
                     logger.error(
@@ -802,10 +888,10 @@ class NaverCrawler:
             db.commit()
             logger.info(
                 "===== [증분] 크롤링 완료: %s %s =====\n"
-                "  전체 단지: %d, dealCnt=0: -%d, 변화 없음: -%d\n"
+                "  전체 단지: %d, 세대수 미달: -%d, dealCnt=0: -%d, 변화 없음: -%d\n"
                 "  실제 크롤링: %d개 단지, 매물 발견: %d, 저장: %d, 에러: %d",
                 sido, sigungu,
-                len(all_complexes), len(zero_deal_nos), skipped_same,
+                len(all_complexes), skipped_small, len(zero_deal_nos), skipped_same,
                 len(crawl_targets),
                 self._stats["articles_found"],
                 self._stats["articles_saved"],

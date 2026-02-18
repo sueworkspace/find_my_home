@@ -6,6 +6,7 @@
 """
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -17,6 +18,31 @@ from app.crawler.real_transaction_client import RealTransactionClient, get_lawd_
 
 logger = logging.getLogger(__name__)
 
+# 면적 매칭 허용 오차 (m²) — 실거래가 84.97 vs 네이버 85.0 같은 차이 허용
+AREA_TOLERANCE = 1.0
+
+
+def _normalize_name(name: str) -> str:
+    """아파트명을 정규화하여 매칭률을 높인다.
+
+    정규화 규칙:
+      1. 괄호와 그 안의 내용 제거: "개포현대(200동)" → "개포현대"
+      2. 동/호 번호 제거: "현대1차101동~106동" → "현대1차"
+      3. 공백, 특수문자 제거
+      4. 숫자 뒤의 "차" 유지: "현대2차" → "현대2차"
+    """
+    # 괄호 내용 제거
+    name = re.sub(r'\([^)]*\)', '', name)
+    # 쉼표 이후 동 정보 제거: "1동,2동,3동" 패턴
+    name = re.sub(r'[\d,]+동.*$', '', name)
+    # "101동~106동", "101동~111동" 패턴 제거
+    name = re.sub(r'\d+동[~\-]\d+동', '', name)
+    # 끝에 붙은 동/호 번호 제거: "103동" 패턴
+    name = re.sub(r'\d+동$', '', name)
+    # 공백, 특수문자 제거
+    name = re.sub(r'[\s\-·・]', '', name)
+    return name.strip()
+
 
 def _match_complex(
     db: Session,
@@ -26,9 +52,12 @@ def _match_complex(
 ) -> Optional[int]:
     """아파트명과 지역 정보로 DB의 ApartmentComplex를 매칭한다.
 
-    매칭 전략:
-      1. 정확히 일치하는 이름 검색 (시/도 + 시/군/구 + 아파트명)
-      2. 아파트명이 포함된 단지 검색 (LIKE 검색)
+    매칭 전략 (순서대로 시도):
+      1. 정확히 일치
+      2. LIKE 검색 (API명이 DB명에 포함)
+      3. 공백 제거 후 비교
+      4. 정규화 후 비교 (괄호/동번호 제거)
+      5. 정규화명 상호 포함 (substring 양방향)
 
     Args:
         db: SQLAlchemy 세션
@@ -52,8 +81,7 @@ def _match_complex(
     if complex_row is not None:
         return complex_row.id
 
-    # 전략 2: LIKE 검색 - 아파트명이 포함된 단지
-    # 예: API "래미안대치팰리스" vs DB "래미안 대치팰리스" (공백 차이)
+    # 전략 2: LIKE 검색 - API명이 DB명에 포함
     complex_row = (
         db.query(ApartmentComplex)
         .filter(
@@ -66,8 +94,7 @@ def _match_complex(
     if complex_row is not None:
         return complex_row.id
 
-    # 전략 3: 아파트명에서 공백 제거 후 비교
-    apt_name_no_space = apt_name.replace(" ", "")
+    # 이하 전략은 전체 단지를 한 번만 조회하여 재사용
     all_complexes = (
         db.query(ApartmentComplex)
         .filter(
@@ -76,9 +103,38 @@ def _match_complex(
         )
         .all()
     )
+
+    # 전략 3: 공백 제거 후 정확히 비교
+    api_no_space = apt_name.replace(" ", "")
     for cpx in all_complexes:
-        if cpx.name.replace(" ", "") == apt_name_no_space:
+        if cpx.name.replace(" ", "") == api_no_space:
             return cpx.id
+
+    # 전략 4: 정규화 후 정확히 비교
+    api_norm = _normalize_name(apt_name)
+    if len(api_norm) >= 2:  # 너무 짧은 이름은 오매칭 방지
+        for cpx in all_complexes:
+            db_norm = _normalize_name(cpx.name)
+            if api_norm == db_norm:
+                return cpx.id
+
+    # 전략 5: 정규화명 상호 포함 (긴 쪽이 짧은 쪽을 포함)
+    if len(api_norm) >= 3:  # 최소 3글자 이상
+        best_match = None
+        best_len = 0
+        for cpx in all_complexes:
+            db_norm = _normalize_name(cpx.name)
+            if len(db_norm) < 3:
+                continue
+            # 양방향 substring 매칭
+            if api_norm in db_norm or db_norm in api_norm:
+                # 더 긴 매칭을 우선 (정확도 높음)
+                match_len = min(len(api_norm), len(db_norm))
+                if match_len > best_len:
+                    best_match = cpx.id
+                    best_len = match_len
+        if best_match is not None:
+            return best_match
 
     return None
 
