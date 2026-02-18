@@ -1,11 +1,17 @@
 """지역 선택 API - 시/도, 시/군/구 목록 조회"""
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
+from typing import List
 
 from app.models.database import get_db
 from app.models.apartment import ApartmentComplex
-from app.schemas.listing import RegionResponse
+
+
+class RegionResponse(BaseModel):
+    """지역 목록 응답"""
+    regions: List[str]
 
 router = APIRouter(prefix="/api/regions", tags=["regions"])
 

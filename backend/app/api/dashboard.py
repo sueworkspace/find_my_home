@@ -1,10 +1,10 @@
 """대시보드 API 라우터
 
 크롤링 현황, 스케줄러 상태, 지역별 통계를 제공합니다.
+(네이버 매물 제거 후 KB시세 + 실거래가 + 단지비교 기반)
 """
 
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.models.database import get_db
 from app.models.apartment import (
-    ApartmentComplex, Listing, KBPrice, PriceComparison, RealTransaction,
+    ApartmentComplex, KBPrice, RealTransaction, ComplexComparison,
 )
 from app.schemas.dashboard import (
     DBSummaryResponse,
@@ -31,34 +31,26 @@ router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 def get_summary(db: Session = Depends(get_db)):
     """DB 요약 통계를 반환합니다."""
     total_complexes = db.query(func.count(ApartmentComplex.id)).scalar() or 0
-    active_listings = db.query(func.count(Listing.id)).filter(
-        Listing.is_active == True  # noqa: E712
-    ).scalar() or 0
-    inactive_listings = db.query(func.count(Listing.id)).filter(
-        Listing.is_active == False  # noqa: E712
-    ).scalar() or 0
     kb_prices_count = db.query(func.count(KBPrice.id)).scalar() or 0
+    real_transactions_count = db.query(func.count(RealTransaction.id)).scalar() or 0
+    comparisons_count = db.query(func.count(ComplexComparison.id)).scalar() or 0
 
-    # 급매: 할인율 > 0 (호가가 KB시세보다 낮은 매물)
-    bargains_count = db.query(func.count(PriceComparison.id)).filter(
-        PriceComparison.discount_rate > 0
+    # 급매: deal_discount_rate > 0 → 실거래가가 KB시세보다 낮게 거래된 단지/면적
+    bargains_count = db.query(func.count(ComplexComparison.id)).filter(
+        ComplexComparison.deal_discount_rate > 0
     ).scalar() or 0
 
-    real_transactions_count = db.query(func.count(RealTransaction.id)).scalar() or 0
-
-    # 최근 업데이트 시각
-    last_listing_update = db.query(func.max(Listing.updated_at)).scalar()
     last_kb_update = db.query(func.max(KBPrice.updated_at)).scalar()
+    last_transaction_update = db.query(func.max(RealTransaction.created_at)).scalar()
 
     return DBSummaryResponse(
         total_complexes=total_complexes,
-        active_listings=active_listings,
-        inactive_listings=inactive_listings,
         kb_prices_count=kb_prices_count,
-        bargains_count=bargains_count,
         real_transactions_count=real_transactions_count,
-        last_listing_update=last_listing_update,
+        comparisons_count=comparisons_count,
+        bargains_count=bargains_count,
         last_kb_update=last_kb_update,
+        last_transaction_update=last_transaction_update,
     )
 
 
@@ -110,39 +102,33 @@ def get_region_breakdown(db: Session = Depends(get_db)):
         sido = row.sido
         sigungu = row.sigungu
 
-        # 해당 지역 단지 ID 목록 (서브쿼리 - select() 명시)
+        # 해당 지역 단지 ID 서브쿼리
         complex_ids_q = select(ApartmentComplex.id).where(
             ApartmentComplex.sido == sido, ApartmentComplex.sigungu == sigungu
         )
-
-        # 활성 매물 수
-        active_count = db.query(func.count(Listing.id)).filter(
-            Listing.complex_id.in_(complex_ids_q),
-            Listing.is_active == True,  # noqa: E712
-        ).scalar() or 0
 
         # KB시세 건수
         kb_count = db.query(func.count(KBPrice.id)).filter(
             KBPrice.complex_id.in_(complex_ids_q),
         ).scalar() or 0
 
-        # 급매 건수: PriceComparison에서 해당 지역 매물의 할인율 > 0
-        listing_ids_q = select(Listing.id).where(
-            Listing.complex_id.in_(complex_ids_q),
-            Listing.is_active == True,  # noqa: E712
-        )
-        bargain_count = db.query(func.count(PriceComparison.id)).filter(
-            PriceComparison.listing_id.in_(listing_ids_q),
-            PriceComparison.discount_rate > 0,
+        # 실거래 건수
+        deal_count = db.query(func.count(RealTransaction.id)).filter(
+            RealTransaction.complex_id.in_(complex_ids_q),
+        ).scalar() or 0
+
+        # 단지 비교 건수
+        comparison_count = db.query(func.count(ComplexComparison.id)).filter(
+            ComplexComparison.complex_id.in_(complex_ids_q),
         ).scalar() or 0
 
         items.append(RegionStatItem(
             sido=sido,
             sigungu=sigungu,
             complex_count=row.complex_count,
-            active_listing_count=active_count,
             kb_price_count=kb_count,
-            bargain_count=bargain_count,
+            deal_count=deal_count,
+            comparison_count=comparison_count,
             latest_update=row.latest_update,
         ))
 

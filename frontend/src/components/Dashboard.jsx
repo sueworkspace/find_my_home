@@ -41,11 +41,10 @@ function formatDate(dateStr) {
 function DashboardStatCards({ summary }) {
   const cards = [
     { label: '전체 단지', value: summary.totalComplexes },
-    { label: '활성 매물', value: summary.activeListings },
-    { label: '비활성 매물', value: summary.inactiveListings },
     { label: 'KB시세', value: summary.kbPricesCount },
-    { label: '급매', value: summary.bargainsCount, accent: true },
     { label: '실거래', value: summary.realTransactionsCount },
+    { label: '단지비교', value: summary.comparisonsCount },
+    { label: '급매', value: summary.bargainsCount, accent: true },
   ];
 
   return (
@@ -59,11 +58,11 @@ function DashboardStatCards({ summary }) {
         </div>
       ))}
       {/* 최근 업데이트 정보 */}
-      {(summary.lastListingUpdate || summary.lastKbUpdate) && (
+      {(summary.lastTransactionUpdate || summary.lastKbUpdate) && (
         <>
           <div className="dashboard__card">
-            <div className="dashboard__card-sub">매물 업데이트</div>
-            <div className="dashboard__card-label">{formatDate(summary.lastListingUpdate)}</div>
+            <div className="dashboard__card-sub">실거래 업데이트</div>
+            <div className="dashboard__card-label">{formatDate(summary.lastTransactionUpdate)}</div>
           </div>
           <div className="dashboard__card">
             <div className="dashboard__card-sub">KB시세 업데이트</div>
@@ -152,9 +151,9 @@ function DashboardRegionTable({ regions }) {
     { key: 'sido', label: '시/도' },
     { key: 'sigungu', label: '시/군/구' },
     { key: 'complexCount', label: '단지' },
-    { key: 'activeListingCount', label: '매물' },
     { key: 'kbPriceCount', label: 'KB시세' },
-    { key: 'bargainCount', label: '급매' },
+    { key: 'dealCount', label: '실거래' },
+    { key: 'comparisonCount', label: '비교' },
   ];
 
   return (
@@ -175,9 +174,9 @@ function DashboardRegionTable({ regions }) {
               <td>{item.sido}</td>
               <td>{item.sigungu}</td>
               <td>{formatNumber(item.complexCount)}</td>
-              <td>{formatNumber(item.activeListingCount)}</td>
               <td>{formatNumber(item.kbPriceCount)}</td>
-              <td>{formatNumber(item.bargainCount)}</td>
+              <td>{formatNumber(item.dealCount)}</td>
+              <td>{formatNumber(item.comparisonCount)}</td>
             </tr>
           ))}
         </tbody>

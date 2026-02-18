@@ -45,7 +45,7 @@ export default function Header({ activeView = 'listings', onViewChange }) {
               className={`header__tab ${activeView === 'listings' ? 'header__tab--active' : ''}`}
               onClick={() => onViewChange('listings')}
             >
-              매물 목록
+              단지 비교
             </button>
             <button
               className={`header__tab ${activeView === 'dashboard' ? 'header__tab--active' : ''}`}

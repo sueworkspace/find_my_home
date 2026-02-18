@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, BigInteger, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Float, DateTime, BigInteger, ForeignKey, UniqueConstraint
 from sqlalchemy.sql import func
 
 from app.models.database import Base
@@ -9,7 +9,7 @@ class ApartmentComplex(Base):
     __tablename__ = "apartment_complex"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    naver_complex_no = Column(String(20), unique=True, nullable=False, index=True)
+    naver_complex_no = Column(String(20), unique=True, nullable=True, index=True)  # 레거시 (nullable)
     name = Column(String(100), nullable=False)
     address = Column(String(200))
     sido = Column(String(20), nullable=False, index=True)
@@ -41,38 +41,6 @@ class KBPrice(Base):
     )
 
 
-class Listing(Base):
-    """네이버 부동산 매물"""
-    __tablename__ = "listing"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    naver_article_id = Column(String(20), unique=True, nullable=False, index=True)
-    complex_id = Column(Integer, ForeignKey("apartment_complex.id"), nullable=False, index=True)
-    dong = Column(String(20))
-    area_sqm = Column(Float, nullable=False)
-    floor = Column(Integer)
-    asking_price = Column(BigInteger, nullable=False)
-    listing_url = Column(String(500))
-    registered_at = Column(DateTime)
-    is_active = Column(Boolean, default=True, index=True)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
-
-
-class PriceComparison(Base):
-    """매물 호가 vs KB시세 비교"""
-    __tablename__ = "price_comparison"
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    listing_id = Column(Integer, ForeignKey("listing.id"), nullable=False, index=True)
-    kb_price_id = Column(Integer, ForeignKey("kb_price.id"), nullable=False)
-    kb_mid_price = Column(BigInteger, nullable=False)
-    asking_price = Column(BigInteger, nullable=False)
-    price_diff = Column(BigInteger, nullable=False)
-    discount_rate = Column(Float, nullable=False)
-    compared_at = Column(DateTime, server_default=func.now())
-
-
 class RealTransaction(Base):
     """실거래가"""
     __tablename__ = "real_transaction"
@@ -84,3 +52,21 @@ class RealTransaction(Base):
     deal_price = Column(BigInteger, nullable=False)
     deal_date = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class ComplexComparison(Base):
+    """단지별 KB시세 vs 최근 실거래가 비교"""
+    __tablename__ = "complex_comparison"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    complex_id = Column(Integer, ForeignKey("apartment_complex.id"), nullable=False, index=True)
+    area_sqm = Column(Float, nullable=False)
+    kb_price_mid = Column(BigInteger)          # KB시세 중간값
+    recent_deal_price = Column(BigInteger)      # 최근 실거래가
+    deal_discount_rate = Column(Float)          # 할인율: (KB - 실거래가) / KB * 100 (양수=KB보다 낮게 거래)
+    deal_count_3m = Column(Integer, default=0)  # 최근 3개월 거래 건수
+    compared_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("complex_id", "area_sqm", name="uq_complex_comparison"),
+    )

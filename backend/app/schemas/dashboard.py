@@ -9,13 +9,12 @@ from pydantic import BaseModel, Field
 class DBSummaryResponse(BaseModel):
     """DB 요약 통계 응답"""
     total_complexes: int = Field(..., description="전체 단지 수")
-    active_listings: int = Field(..., description="활성 매물 수")
-    inactive_listings: int = Field(..., description="비활성 매물 수")
     kb_prices_count: int = Field(..., description="KB시세 건수")
-    bargains_count: int = Field(..., description="급매 건수 (할인율 > 0)")
     real_transactions_count: int = Field(..., description="실거래 건수")
-    last_listing_update: Optional[datetime] = Field(None, description="최근 매물 업데이트")
+    comparisons_count: int = Field(..., description="단지 비교 건수")
+    bargains_count: int = Field(..., description="급매 건수 (실거래가 < KB시세)")
     last_kb_update: Optional[datetime] = Field(None, description="최근 KB시세 업데이트")
+    last_transaction_update: Optional[datetime] = Field(None, description="최근 실거래가 업데이트")
 
 
 class SchedulerJobInfo(BaseModel):
@@ -38,9 +37,9 @@ class RegionStatItem(BaseModel):
     sido: str = Field(..., description="시/도")
     sigungu: str = Field(..., description="시/군/구")
     complex_count: int = Field(0, description="단지 수")
-    active_listing_count: int = Field(0, description="활성 매물 수")
     kb_price_count: int = Field(0, description="KB시세 건수")
-    bargain_count: int = Field(0, description="급매 건수")
+    deal_count: int = Field(0, description="실거래 건수")
+    comparison_count: int = Field(0, description="단지 비교 건수")
     latest_update: Optional[datetime] = Field(None, description="최근 업데이트")
 
 

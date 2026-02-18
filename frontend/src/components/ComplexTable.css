@@ -1,0 +1,130 @@
+/* ComplexTable.css — KB시세 vs 실거래가 비교 테이블 스타일 */
+
+/* ── 빈 상태 ── */
+.complex-table__empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--color-text-muted, #888);
+  font-size: 0.95rem;
+}
+
+/* ── 테이블 래퍼 (가로 스크롤 대응) ── */
+.complex-table__wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+/* ── 테이블 기본 ── */
+.complex-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  background: #fff;
+}
+
+.complex-table thead {
+  background: var(--color-bg-secondary, #f8fafc);
+  position: sticky;
+  top: 0;
+}
+
+.complex-table th {
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary, #4a5568);
+  border-bottom: 2px solid var(--color-border, #e2e8f0);
+  white-space: nowrap;
+}
+
+.complex-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--color-border, #f0f4f8);
+  vertical-align: middle;
+}
+
+.complex-table tbody tr:hover {
+  background: var(--color-bg-hover, #f0f9ff);
+}
+
+/* ── 아파트명 셀 ── */
+.complex-table__name {
+  font-weight: 500;
+  color: var(--color-text-primary, #1a202c);
+}
+
+.complex-table__year {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #999);
+  margin-top: 2px;
+}
+
+/* ── 지역 셀 ── */
+.complex-table__region {
+  color: var(--color-text-secondary, #4a5568);
+}
+
+.complex-table__dong {
+  color: var(--color-text-muted, #888);
+  font-size: 0.8rem;
+}
+
+/* ── 면적 셀 ── */
+.complex-table__area {
+  white-space: nowrap;
+}
+
+.complex-table__pyeong {
+  color: var(--color-text-muted, #888);
+  font-size: 0.8rem;
+  margin-left: 2px;
+}
+
+/* ── 가격 셀 ── */
+.complex-table__price {
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: right;
+}
+
+/* ── 거래 건수 ── */
+.complex-table__count {
+  text-align: center;
+  color: var(--color-text-secondary, #4a5568);
+}
+
+/* ── 할인율 뱃지 ── */
+.complex-table__badge {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.complex-table__badge--positive {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.complex-table__badge--negative {
+  background: #fdecea;
+  color: #c0392b;
+}
+
+/* ── 반응형 (모바일: 768px 미만) ── */
+@media (max-width: 768px) {
+  .complex-table th:nth-child(7),
+  .complex-table td:nth-child(7) {
+    display: none; /* 3개월 거래건수 숨김 */
+  }
+
+  .complex-table th,
+  .complex-table td {
+    padding: 0.6rem 0.5rem;
+    font-size: 0.8rem;
+  }
+}

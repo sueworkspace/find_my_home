@@ -99,18 +99,30 @@ export async function getRegionBreakdown() {
   return convertKeys(await response.json());
 }
 
-/* ─── 매물 API ─── */
+/* ─── 단지 비교 API ─── */
 
-export async function getListings(sido, sigungu, options = {}) {
-  const params = new URLSearchParams({ sido, sigungu, size: '100' });
+/**
+ * 단지 KB시세 vs 실거래가 비교 목록 조회
+ * @param {object} [options] - 필터/정렬 옵션
+ * @param {string} [options.sido] - 시/도 필터
+ * @param {string} [options.sigungu] - 시/군/구 필터
+ * @param {number} [options.minDiscount] - 최소 할인율 (급매 필터, 예: 0)
+ * @param {string} [options.sortBy] - 정렬 기준 (deal_discount_rate 등)
+ * @param {string} [options.order] - 정렬 방향 (desc | asc)
+ * @param {number} [options.limit] - 최대 건수 (기본 100)
+ * @returns {Promise<{total: number, items: Array}>}
+ */
+export async function getComplexes(options = {}) {
+  const params = new URLSearchParams();
+  if (options.sido) params.set('sido', options.sido);
+  if (options.sigungu) params.set('sigungu', options.sigungu);
+  if (options.minDiscount != null) params.set('min_discount', String(options.minDiscount));
+  if (options.sortBy) params.set('sort_by', options.sortBy);
+  if (options.order) params.set('order', options.order);
+  if (options.limit) params.set('limit', String(options.limit));
 
-  // 급매 필터: min_discount가 0 이상이면 서버에 전달
-  if (options.minDiscount != null && options.minDiscount >= 0) {
-    params.set('min_discount', String(options.minDiscount));
-  }
-
-  const response = await fetch(`${API_BASE_URL}/listings?${params}`);
-  if (!response.ok) throw new Error('매물 정보를 불러오는 데 실패했습니다.');
+  const response = await fetch(`${API_BASE_URL}/complexes?${params}`);
+  if (!response.ok) throw new Error('단지 정보를 불러오는 데 실패했습니다.');
   const data = await response.json();
-  return convertKeys(data.items);
+  return { total: data.total, items: convertKeys(data.items) };
 }

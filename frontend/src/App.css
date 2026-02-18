@@ -36,14 +36,52 @@
   min-height: 300px;
 }
 
+/* 지역 라벨 + 필터 버튼을 담는 툴바 */
+.app__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  padding: var(--space-xs) 0;
+  border-bottom: 2px solid var(--color-primary);
+}
+
 /* 선택된 지역 라벨 */
 .app__region-label {
   font-size: 1.0625rem;
   font-weight: 700;
   color: var(--color-primary);
-  padding: var(--space-xs) 0;
-  border-bottom: 2px solid var(--color-primary);
-  display: inline-block;
+}
+
+.app__count {
+  font-size: 0.9rem;
+  font-weight: 400;
+  color: var(--color-text-secondary, #4a5568);
+}
+
+/* 급매만 보기 버튼 */
+.app__bargain-btn {
+  padding: 0.35rem 0.85rem;
+  border-radius: 20px;
+  border: 1.5px solid var(--color-primary);
+  background: transparent;
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.app__bargain-btn--active {
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.app__bargain-btn:hover {
+  background: var(--color-primary);
+  color: #fff;
 }
 
 /* === 푸터 === */

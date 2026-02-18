@@ -1,8 +1,9 @@
 """
 실거래가 데이터 저장 및 조회 서비스
 
-국토교통부 API에서 수집한 실거래가 데이터를 DB에 저장하고,
-네이버 부동산 단지와 매칭하여 조회하는 비즈니스 로직을 담당합니다.
+국토교통부 API에서 수집한 실거래가 데이터를 DB에 저장합니다.
+- 기존 단지와 이름 기반 매칭
+- 매칭 실패 시 실거래가 정보를 바탕으로 신규 단지 자동 생성
 """
 
 import logging
@@ -139,6 +140,42 @@ def _match_complex(
     return None
 
 
+def _create_complex(
+    db: Session,
+    apt_name: str,
+    sido: str,
+    sigungu: str,
+    dong: str,
+    build_year: Optional[int],
+) -> int:
+    """실거래가 데이터를 바탕으로 신규 ApartmentComplex를 생성한다.
+
+    네이버 데이터 없이 실거래가 API만으로 단지를 등록할 때 사용.
+
+    Args:
+        db: SQLAlchemy 세션
+        apt_name: 아파트명
+        sido: 시/도
+        sigungu: 시/군/구
+        dong: 법정동 (umd_name)
+        build_year: 건축년도
+
+    Returns:
+        생성된 ApartmentComplex의 id
+    """
+    new_complex = ApartmentComplex(
+        name=apt_name,
+        sido=sido,
+        sigungu=sigungu,
+        dong=dong or None,
+        built_year=build_year or None,
+    )
+    db.add(new_complex)
+    db.flush()  # id 확정 (commit 전)
+    logger.info("신규 단지 생성: %s %s %s (id=%d)", sido, sigungu, apt_name, new_complex.id)
+    return new_complex.id
+
+
 def _is_duplicate(
     db: Session,
     complex_id: int,
@@ -186,9 +223,9 @@ def save_transactions(
 ) -> Tuple[int, int, int]:
     """실거래가 데이터를 DB에 저장한다.
 
-    - 네이버 부동산 단지와 이름 기반으로 매칭
+    - 이름 기반으로 기존 단지와 매칭
+    - 매칭 실패 시 실거래가 정보로 신규 단지 자동 생성
     - 중복 데이터는 건너뜀
-    - 매칭 실패한 건은 로그만 남기고 건너뜀
 
     Args:
         db: SQLAlchemy 세션
@@ -197,26 +234,37 @@ def save_transactions(
         sigungu: 시/군/구 이름 (단지 매칭에 사용)
 
     Returns:
-        (저장 성공 건수, 중복 건수, 매칭 실패 건수) 튜플
+        (저장 성공 건수, 중복 건수, 신규 단지 생성 건수) 튜플
     """
     saved_count = 0
     duplicate_count = 0
-    unmatched_count = 0
+    created_count = 0
 
-    # 매칭 캐시: {아파트명 -> complex_id 또는 None}
-    match_cache: Dict[str, Optional[int]] = {}
+    # 매칭 캐시: {아파트명 -> complex_id}
+    match_cache: Dict[str, int] = {}
 
     for tx in transactions:
         apt_name = tx["apt_name"]
 
         # 캐시에서 매칭 결과 조회
         if apt_name not in match_cache:
-            match_cache[apt_name] = _match_complex(db, apt_name, sido, sigungu)
+            existing_id = _match_complex(db, apt_name, sido, sigungu)
+            if existing_id is not None:
+                match_cache[apt_name] = existing_id
+            else:
+                # 매칭 실패 → 신규 단지 자동 생성
+                new_id = _create_complex(
+                    db,
+                    apt_name=apt_name,
+                    sido=sido,
+                    sigungu=sigungu,
+                    dong=tx.get("umd_name", ""),
+                    build_year=tx.get("build_year"),
+                )
+                match_cache[apt_name] = new_id
+                created_count += 1
 
         complex_id = match_cache[apt_name]
-        if complex_id is None:
-            unmatched_count += 1
-            continue
 
         # 중복 확인
         if _is_duplicate(
@@ -241,25 +289,16 @@ def save_transactions(
         db.add(record)
         saved_count += 1
 
-    # 일괄 커밋
-    if saved_count > 0:
+    # 일괄 커밋 (신규 단지 + 실거래가)
+    if saved_count > 0 or created_count > 0:
         db.commit()
 
     logger.info(
-        "실거래가 저장 완료: %s %s - 저장=%d, 중복=%d, 매칭실패=%d",
-        sido, sigungu, saved_count, duplicate_count, unmatched_count,
+        "실거래가 저장 완료: %s %s - 저장=%d, 중복=%d, 신규단지=%d",
+        sido, sigungu, saved_count, duplicate_count, created_count,
     )
 
-    # 매칭 실패한 아파트명 목록 로깅 (디버깅용)
-    unmatched_names = [
-        name for name, cid in match_cache.items() if cid is None
-    ]
-    if unmatched_names:
-        logger.debug(
-            "매칭 실패 아파트명: %s", ", ".join(unmatched_names[:20]),
-        )
-
-    return saved_count, duplicate_count, unmatched_count
+    return saved_count, duplicate_count, created_count
 
 
 async def collect_and_save(
@@ -300,7 +339,7 @@ async def collect_and_save(
             }
 
         # DB에 저장
-        saved, duplicates, unmatched = save_transactions(
+        saved, duplicates, created = save_transactions(
             db, transactions, sido, sigungu,
         )
 
@@ -311,7 +350,8 @@ async def collect_and_save(
             "fetched": len(transactions),
             "saved": saved,
             "duplicates": duplicates,
-            "unmatched": unmatched,
+            "unmatched": 0,
+            "created": created,
         }
 
     finally:

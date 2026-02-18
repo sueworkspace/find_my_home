@@ -5,24 +5,15 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql://suelee@localhost:5432/find_my_home"
-    CRAWLER_DELAY_SECONDS: float = 1.5
-    CRAWLER_INTERVAL_MINUTES: int = 60       # (하위호환용, 전체 파이프라인)
-    CRAWLER_MAX_RETRIES: int = 3
 
-    # 증분 크롤링 설정
-    NAVER_CRAWL_INTERVAL_MINUTES: int = 150  # 네이버 증분 크롤링 간격 (2.5시간)
-    KB_PRICE_CRON_HOUR: int = 6              # KB시세 수집 시각 (매일)
+    # KB시세 수집 스케줄
+    KB_PRICE_CRON_HOUR: int = 6
     KB_PRICE_CRON_MINUTE: int = 0
-    MIN_HOUSEHOLD_COUNT: int = 200           # 최소 세대수 필터
 
     # 공공데이터포털 API 인증키 (data.go.kr)
     DATA_GO_KR_API_KEY: str = ""
 
-    # 배치 크롤링 설정
-    BATCH_COOLDOWN_SECONDS: int = 600      # API 호출 한도 도달 시 쿨다운 (10분)
-    BATCH_API_CALL_LIMIT: int = 180        # 쿨다운 트리거 API 호출 수
-
-    # 크롤링 대상 지역 목록 — 서울 25구 + 경기 28시 + 인천 8구 = 61개
+    # 실거래가 수집 대상 지역 — 수도권 + 5대 광역시 = 110개
     TARGET_REGIONS: List[Dict[str, str]] = [
         # ── 서울특별시 25구 ──
         {"sido": "서울특별시", "sigungu": "강남구"},
@@ -88,11 +79,57 @@ class Settings(BaseSettings):
         {"sido": "인천광역시", "sigungu": "미추홀구"},
         {"sido": "인천광역시", "sigungu": "중구"},
         {"sido": "인천광역시", "sigungu": "동구"},
+        # ── 부산광역시 16구군 ──
+        {"sido": "부산광역시", "sigungu": "해운대구"},
+        {"sido": "부산광역시", "sigungu": "수영구"},
+        {"sido": "부산광역시", "sigungu": "남구"},
+        {"sido": "부산광역시", "sigungu": "동래구"},
+        {"sido": "부산광역시", "sigungu": "연제구"},
+        {"sido": "부산광역시", "sigungu": "부산진구"},
+        {"sido": "부산광역시", "sigungu": "북구"},
+        {"sido": "부산광역시", "sigungu": "사상구"},
+        {"sido": "부산광역시", "sigungu": "사하구"},
+        {"sido": "부산광역시", "sigungu": "강서구"},
+        {"sido": "부산광역시", "sigungu": "금정구"},
+        {"sido": "부산광역시", "sigungu": "기장군"},
+        {"sido": "부산광역시", "sigungu": "중구"},
+        {"sido": "부산광역시", "sigungu": "서구"},
+        {"sido": "부산광역시", "sigungu": "동구"},
+        {"sido": "부산광역시", "sigungu": "영도구"},
+        # ── 대구광역시 7구1군 ──
+        {"sido": "대구광역시", "sigungu": "수성구"},
+        {"sido": "대구광역시", "sigungu": "달서구"},
+        {"sido": "대구광역시", "sigungu": "북구"},
+        {"sido": "대구광역시", "sigungu": "동구"},
+        {"sido": "대구광역시", "sigungu": "서구"},
+        {"sido": "대구광역시", "sigungu": "남구"},
+        {"sido": "대구광역시", "sigungu": "중구"},
+        {"sido": "대구광역시", "sigungu": "달성군"},
+        # ── 광주광역시 5구 ──
+        {"sido": "광주광역시", "sigungu": "서구"},
+        {"sido": "광주광역시", "sigungu": "북구"},
+        {"sido": "광주광역시", "sigungu": "남구"},
+        {"sido": "광주광역시", "sigungu": "동구"},
+        {"sido": "광주광역시", "sigungu": "광산구"},
+        # ── 대전광역시 5구 ──
+        {"sido": "대전광역시", "sigungu": "서구"},
+        {"sido": "대전광역시", "sigungu": "유성구"},
+        {"sido": "대전광역시", "sigungu": "대덕구"},
+        {"sido": "대전광역시", "sigungu": "동구"},
+        {"sido": "대전광역시", "sigungu": "중구"},
+        # ── 세종특별자치시 ──
+        {"sido": "세종특별자치시", "sigungu": "세종시"},
+        # ── 울산광역시 4구1군 ──
+        {"sido": "울산광역시", "sigungu": "남구"},
+        {"sido": "울산광역시", "sigungu": "북구"},
+        {"sido": "울산광역시", "sigungu": "동구"},
+        {"sido": "울산광역시", "sigungu": "중구"},
+        {"sido": "울산광역시", "sigungu": "울주군"},
     ]
 
     class Config:
         env_file = ".env"
-        extra = "ignore"  # .env의 WP_* 등 미정의 변수 무시
+        extra = "ignore"
 
 
 settings = Settings()
