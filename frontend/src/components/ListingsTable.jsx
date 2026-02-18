@@ -5,7 +5,8 @@
  * - 매물 목록을 테이블(데스크톱) 또는 카드(모바일) 형태로 표시
  * - 컬럼 클릭으로 정렬 기능 제공 (오름차순/내림차순 토글)
  * - 행 클릭 시 네이버 부동산 상세 페이지로 이동
- * - 할인율에 따라 색상 구분 (고: 빨강, 중: 주황, 저: 초록)
+ * - 할인율 뱃지 색상 구분 (양수/급매: 초록, 음수: 빨강, null: 회색)
+ * - 급매 매물(discount_rate > 0) 행/카드에 초록 배경 강조 표시
  *
  * 반응형 전략:
  * - 모바일(768px 미만): 카드형 리스트 (가로 스크롤 없음)
@@ -106,14 +107,23 @@ export default function ListingsTable({ listings }) {
 
   /**
    * 할인율에 따른 CSS 클래스 반환
-   * - 7% 이상: high (빨간색)
-   * - 5% 이상: mid (주황색)
-   * - 그 외: low (초록색)
+   * - 양수(KB시세보다 저렴 = 급매): 초록색
+   * - 음수(KB시세보다 비쌈): 빨간색
+   * - null/undefined: 회색
    */
   const getDiscountClass = (rate) => {
-    if (rate >= 7) return 'listings-table__discount--high';
-    if (rate >= 5) return 'listings-table__discount--mid';
-    return 'listings-table__discount--low';
+    if (rate == null) return 'listings-table__discount--null';
+    if (rate > 0) return 'listings-table__discount--positive';
+    if (rate < 0) return 'listings-table__discount--negative';
+    return 'listings-table__discount--null';
+  };
+
+  /**
+   * 급매 여부 판단 (discount_rate > 0이면 급매)
+   * - KB시세보다 저렴한 매물을 급매로 판단
+   */
+  const isBargain = (listing) => {
+    return listing.discountRate != null && listing.discountRate > 0;
   };
 
   /** 현재 선택된 모바일 정렬 옵션의 인덱스 */
@@ -175,7 +185,7 @@ export default function ListingsTable({ listings }) {
             {sortedListings.map((listing) => (
               <tr
                 key={listing.id}
-                className="listings-table__row"
+                className={`listings-table__row ${isBargain(listing) ? 'listings-table__row--bargain' : ''}`}
                 onClick={() => handleRowClick(listing)}
                 title="클릭하면 네이버 부동산 상세 페이지로 이동합니다"
               >
@@ -224,7 +234,7 @@ export default function ListingsTable({ listings }) {
         {sortedListings.map((listing) => (
           <article
             key={listing.id}
-            className="listing-card"
+            className={`listing-card ${isBargain(listing) ? 'listing-card--bargain' : ''}`}
             onClick={() => handleRowClick(listing)}
             role="button"
             tabIndex={0}

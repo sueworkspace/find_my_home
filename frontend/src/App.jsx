@@ -26,6 +26,8 @@ const DEFAULT_FILTERS = {
   areaMin: 0,
   areaMax: Infinity,
   areaIndex: 0,
+  bargainOnly: false,      // 급매만 보기 토글 상태
+  minDiscountValue: 0,     // 최소 할인율 슬라이더 값 (%)
 };
 
 export default function App() {
@@ -71,11 +73,22 @@ export default function App() {
 
   /**
    * 필터링된 매물 목록 (메모이제이션)
-   * - 할인율, 호가, 면적 필터를 순차적으로 적용
+   * - 급매 토글, 최소 할인율, 할인율 셀렉트, 호가, 면적 필터를 순차적으로 적용
    */
   const filteredListings = useMemo(() => {
     return listings.filter((listing) => {
-      // 할인율 필터: 최소 할인율 이상만 통과
+      // 급매만 보기 필터: discountRate > 0 인 매물만 통과
+      if (filters.bargainOnly) {
+        if (listing.discountRate == null || listing.discountRate <= 0) {
+          return false;
+        }
+        // 최소 할인율 슬라이더 필터 (급매 토글이 켜졌을 때만 적용)
+        if (filters.minDiscountValue > 0 && listing.discountRate < filters.minDiscountValue) {
+          return false;
+        }
+      }
+
+      // 할인율 필터 (셀렉트 박스): 최소 할인율 이상만 통과
       if (filters.minDiscount > 0 && (listing.discountRate || 0) < filters.minDiscount) {
         return false;
       }

@@ -183,3 +183,157 @@ class NaverLandClient:
         }
         await self._throttle()
         return await self._request(url, params)
+
+    # ──────────────────────────────────────────
+    # 지역/단지/매물 조회 메서드 (크롤러에서 사용)
+    # ──────────────────────────────────────────
+
+    async def get_sub_regions(self, cortar_no: str) -> Optional[List[Dict]]:
+        """하위 지역 목록 조회.
+
+        시/도 코드 → 시/군/구 목록, 시/군/구 코드 → 읍/면/동 목록을 반환.
+
+        API 응답: {"result": {"list": [{"CortarNo": "...", "CortarNm": "..."}, ...]}}
+        → 정규화하여 [{"cortarNo": "...", "cortarName": "..."}, ...] 리스트로 반환
+
+        Args:
+            cortar_no: 상위 지역 코드 (cortarNo)
+
+        Returns:
+            지역 dict 리스트 (정규화된 키), 실패 시 None
+        """
+        url = f"{MOBILE_API_BASE}/map/getRegionList"
+        params = {"cortarNo": cortar_no}
+        await self._throttle()
+        raw = await self._request(url, params)
+        if not raw:
+            return None
+
+        # 응답 정규화: {"result": {"list": [...]}} → 리스트
+        items = []
+        result = raw.get("result")
+        if isinstance(result, dict):
+            items = result.get("list", [])
+        elif isinstance(result, list):
+            items = result
+
+        # PascalCase → 소문자 키 정규화
+        normalized = []
+        for item in items:
+            normalized.append({
+                "cortarNo": item.get("CortarNo", ""),
+                "cortarName": item.get("CortarNm", ""),
+                "lat": item.get("CenterLat"),
+                "lon": item.get("CenterLon"),
+            })
+        return normalized
+
+    async def get_complex_list_in_region(
+        self,
+        cortar_no: str,
+        page: int = 1,
+    ) -> Optional[Dict]:
+        """지역 내 아파트 단지 목록 조회.
+
+        API 응답: {"result": [{"hscpNo": "881", "hscpNm": "개포더샵트리에", ...}, ...]}
+        → 정규화하여 {"complexList": [...], "totalCount": N} 형태로 반환
+
+        Args:
+            cortar_no: 동 코드 (cortarNo)
+            page: 페이지 번호
+
+        Returns:
+            {"complexList": [...], "totalCount": N} 형태의 dict, 실패 시 None
+        """
+        url = f"{MOBILE_API_BASE}/complex/ajax/complexListByCortarNo"
+        params = {
+            "cortarNo": cortar_no,
+            "order": "rank",
+            "realEstateType": "APT",
+            "tradeType": "A1",
+            "page": str(page),
+        }
+        await self._throttle()
+        raw = await self._request(url, params)
+        if not raw:
+            return None
+
+        # 응답 정규화: {"result": [...]} → {"complexList": [...], "totalCount": N}
+        items = raw.get("result", [])
+        if not isinstance(items, list):
+            items = []
+
+        # hscpNo/hscpNm → complexNo/complexName 키 정규화
+        complexes = []
+        for item in items:
+            complexes.append({
+                "complexNo": item.get("hscpNo", ""),
+                "complexName": item.get("hscpNm", ""),
+                "dealCnt": item.get("dealCnt", 0),
+                "totalHouseholdCount": item.get("totHsehCnt"),
+                "useApproveYmd": item.get("useAprvYmd"),
+                "latitude": item.get("lat"),
+                "longitude": item.get("lon"),
+                "cortarAddress": item.get("cortarAddress", ""),
+                "address": item.get("dtlAddress", ""),
+            })
+
+        return {"complexList": complexes, "totalCount": len(complexes)}
+
+    async def get_articles_for_complex(
+        self,
+        complex_no: str,
+        trade_type: str = "A1",
+        page: int = 1,
+    ) -> Optional[Dict]:
+        """특정 단지의 매매 매물 목록 조회.
+
+        API 응답: {"result": {"list": [{"atclNo": "...", "atclNm": "...", ...}], "totalCount": N}}
+        → 정규화하여 {"articleList": [...], "totalCount": N} 형태로 반환
+
+        Args:
+            complex_no: 네이버 단지 번호 (hscpNo)
+            trade_type: 거래 유형 (A1=매매, B1=전세, B2=월세)
+            page: 페이지 번호
+
+        Returns:
+            {"articleList": [...], "totalCount": N} 형태의 dict, 실패 시 None
+        """
+        url = f"{MOBILE_API_BASE}/complex/getComplexArticleList"
+        params = {
+            "hscpNo": complex_no,
+            "tradTpCd": trade_type,
+            "order": "prc",
+            "showR0": "N",
+            "page": str(page),
+        }
+        await self._throttle()
+        raw = await self._request(url, params)
+        if not raw:
+            return None
+
+        # 응답 정규화: {"result": {"list": [...], "totalCount": N}}
+        result = raw.get("result", {})
+        if not isinstance(result, dict):
+            return {"articleList": [], "totalCount": 0}
+
+        items = result.get("list", [])
+        total_count = result.get("totalCount", len(items))
+
+        # 매물 키 정규화
+        articles = []
+        for item in items:
+            # flrInfo: "저/16" → "저" 또는 "15/16" 형태
+            articles.append({
+                "articleNo": item.get("atclNo", ""),
+                "articleName": item.get("atclNm", ""),
+                "dealOrWarrantPrc": item.get("dealOrWarrantPrc", ""),
+                "area1": item.get("spc1"),  # 공급면적
+                "area2": item.get("spc2"),  # 전용면적
+                "floorInfo": item.get("flrInfo", ""),
+                "buildingName": item.get("bildNm", ""),
+                "articleConfirmYmd": item.get("atclCfmYmd", ""),
+                "direction": item.get("direction", ""),
+            })
+
+        return {"articleList": articles, "totalCount": total_count}

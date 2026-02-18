@@ -58,6 +58,7 @@ KB_DELAY_SECONDS = 1.5
 
 # ──────────────────────────────────────────
 # 서울 주요 구 법정동코드 매핑 (kbland.kr용)
+# 구-level 코드 (fallback용)
 # ──────────────────────────────────────────
 LAWDCD_MAP: Dict[str, Dict[str, str]] = {
     "서울특별시": {
@@ -73,6 +74,83 @@ LAWDCD_MAP: Dict[str, Dict[str, str]] = {
         "동작구": "1159000000",
     },
 }
+
+# ──────────────────────────────────────────
+# 동-level 법정동코드 매핑
+# KB API(fastPriceComplexName)는 동-level 코드가 필요함
+# ──────────────────────────────────────────
+DONG_LAWDCD_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
+    "서울특별시": {
+        "강남구": {
+            "역삼동": "1168010100",
+            "개포동": "1168010300",
+            "청담동": "1168010400",
+            "삼성동": "1168010500",
+            "대치동": "1168010600",
+            "신사동": "1168010700",
+            "논현동": "1168010800",
+            "압구정동": "1168011000",
+            "세곡동": "1168011100",
+            "자곡동": "1168011200",
+            "율현동": "1168011300",
+            "일원동": "1168011400",
+            "수서동": "1168011500",
+            "도곡동": "1168011800",
+        },
+        "서초구": {
+            "방배동": "1165010100",
+            "양재동": "1165010200",
+            "우면동": "1165010300",
+            "잠원동": "1165010600",
+            "반포동": "1165010700",
+            "서초동": "1165010800",
+            "내곡동": "1165010900",
+            "신원동": "1165011100",
+        },
+        "송파구": {
+            "잠실동": "1171010100",
+            "신천동": "1171010200",
+            "풍납동": "1171010300",
+            "송파동": "1171010400",
+            "석촌동": "1171010500",
+            "삼전동": "1171010600",
+            "가락동": "1171010700",
+            "문정동": "1171010800",
+            "장지동": "1171010900",
+            "방이동": "1171011100",
+            "오금동": "1171011200",
+            "거여동": "1171011300",
+            "마천동": "1171011400",
+        },
+    },
+}
+
+
+def get_lawdcd(
+    sido: str,
+    sigungu: str,
+    dong: Optional[str] = None,
+) -> Optional[str]:
+    """법정동코드를 조회한다.
+
+    dong이 있으면 동-level 코드 반환 (KB API 호환),
+    없으면 구-level 코드 반환 (fallback).
+
+    Args:
+        sido: 시/도 (예: "서울특별시")
+        sigungu: 시/군/구 (예: "강남구")
+        dong: 동 이름 (예: "대치동", 선택)
+
+    Returns:
+        10자리 법정동코드 문자열, 없으면 None
+    """
+    if dong:
+        dong_map = DONG_LAWDCD_MAP.get(sido, {}).get(sigungu, {})
+        code = dong_map.get(dong)
+        if code:
+            return code
+    # fallback: 구-level 코드
+    return LAWDCD_MAP.get(sido, {}).get(sigungu)
 
 
 class KBPriceClient:
@@ -374,6 +452,58 @@ class KBPriceClient:
             )
 
         return results
+
+    # ──────────────────────────────────────────
+    # 네이버 부동산 단지와 KB 단지 매칭
+    # ──────────────────────────────────────────
+
+    # ──────────────────────────────────────────
+    # 편의 메서드: 네이버 단지 → KB시세 한번에 조회
+    # ──────────────────────────────────────────
+
+    async def get_prices_for_complex(
+        self,
+        complex_name: str,
+        sido: str = "서울특별시",
+        sigungu: str = "",
+        dong: Optional[str] = None,
+        address: Optional[str] = None,
+    ) -> Tuple[Optional[str], List[Dict[str, Any]]]:
+        """네이버 단지명으로 KB 단지를 매칭하고 시세를 한번에 조회한다.
+
+        1) sido + sigungu + dong → 동-level 법정동코드 조회
+        2) match_complex로 KB 단지 매칭
+        3) get_all_prices로 전체 면적별 시세 조회
+
+        Args:
+            complex_name: 아파트 단지명 (네이버 기준)
+            sido: 시/도 (예: "서울특별시")
+            sigungu: 시/군/구 (예: "강남구")
+            dong: 동 이름 (예: "대치동") - 동-level 코드 조회에 사용
+            address: 주소 (미사용, 호환성 유지)
+
+        Returns:
+            (kb_complex_id 문자열, 면적별 시세 리스트) 튜플.
+            매칭 실패 시 (None, [])
+        """
+        # 법정동코드 조회 (동-level 우선, fallback 구-level)
+        lawdcd = get_lawdcd(sido, sigungu, dong)
+        if not lawdcd:
+            logger.warning("법정동코드 없음: %s %s %s", sido, sigungu, dong or "")
+            return None, []
+
+        # KB 단지 매칭
+        matched = await self.match_complex(complex_name, lawdcd)
+        if not matched:
+            return None, []
+
+        kb_id = matched.get("단지기본일련번호")
+        if not kb_id:
+            return None, []
+
+        # 전체 면적별 시세 조회
+        prices = await self.get_all_prices(int(kb_id))
+        return str(kb_id), prices
 
     # ──────────────────────────────────────────
     # 네이버 부동산 단지와 KB 단지 매칭

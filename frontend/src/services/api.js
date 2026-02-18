@@ -59,13 +59,22 @@ export async function getSigunguList(sido) {
  * 매물 목록 조회 API
  * - 선택된 지역의 매물 최대 100건 조회
  * - 응답 데이터의 키를 camelCase로 변환하여 반환
+ * - min_discount 옵션으로 급매 필터링 가능 (서버사이드)
  *
  * @param {string} sido - 시/도 이름
  * @param {string} sigungu - 시/군/구 이름
+ * @param {object} [options] - 추가 옵션
+ * @param {number} [options.minDiscount] - 최소 할인율 (0 이상이면 급매만 조회)
  * @returns {Promise<Array>} 매물 객체 배열
  */
-export async function getListings(sido, sigungu) {
+export async function getListings(sido, sigungu, options = {}) {
   const params = new URLSearchParams({ sido, sigungu, size: '100' });
+
+  // 급매 필터: min_discount가 0 이상이면 서버에 전달
+  if (options.minDiscount != null && options.minDiscount >= 0) {
+    params.set('min_discount', String(options.minDiscount));
+  }
+
   const response = await fetch(`${API_BASE_URL}/listings?${params}`);
   if (!response.ok) throw new Error('매물 정보를 불러오는 데 실패했습니다.');
   const data = await response.json();

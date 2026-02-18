@@ -4,7 +4,7 @@ import math
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import desc, asc, func
+from sqlalchemy import desc, asc, func, case
 from sqlalchemy.orm import Session
 
 from app.models.database import get_db
@@ -111,7 +111,11 @@ def get_listings(
             Listing.asking_price,
             Listing.registered_at,
             Listing.listing_url,
-            KBPrice.price_mid.label("kb_price"),
+            # KB시세: 직접 JOIN 결과 우선, 없으면 PriceComparison에서 가져옴
+            case(
+                (KBPrice.price_mid.isnot(None), KBPrice.price_mid),
+                else_=PriceComparison.kb_mid_price,
+            ).label("kb_price"),
             PriceComparison.discount_rate,
             PriceComparison.price_diff,
             RealTransaction.deal_price.label("recent_deal_price"),

@@ -65,6 +65,23 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  /** 급매만 보기 토글 핸들러 */
+  const handleBargainToggle = () => {
+    const newBargainOnly = !filters.bargainOnly;
+    onFilterChange({
+      ...filters,
+      bargainOnly: newBargainOnly,
+      // 급매 토글 켜면 최소 할인율을 0으로 설정 (급매 = discountRate > 0)
+      // 급매 토글 끄면 최소 할인율 필터도 초기화
+      minDiscount: newBargainOnly ? (filters.minDiscount || 0) : 0,
+    });
+  };
+
+  /** 최소 할인율 슬라이더 변경 핸들러 */
+  const handleMinDiscountSlider = (e) => {
+    onFilterChange({ ...filters, minDiscountValue: Number(e.target.value) });
+  };
+
   /** 할인율 필터 변경 */
   const handleDiscountChange = (e) => {
     onFilterChange({ ...filters, minDiscount: Number(e.target.value) });
@@ -104,12 +121,15 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
       areaMin: 0,
       areaMax: Infinity,
       areaIndex: 0,
+      bargainOnly: false,
+      minDiscountValue: 0,
     });
   };
 
   /** 현재 활성화된 필터가 있는지 확인 */
   const hasActiveFilter =
-    filters.minDiscount > 0 || filters.priceIndex > 0 || filters.areaIndex > 0;
+    filters.minDiscount > 0 || filters.priceIndex > 0 || filters.areaIndex > 0 ||
+    filters.bargainOnly || filters.minDiscountValue > 0;
 
   return (
     <div className="filters">
@@ -158,6 +178,55 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
       {/* 필터 본문: 토글 상태에 따라 표시/숨김 */}
       {isOpen && (
         <div className="filters__body">
+          {/* 급매만 보기 토글 영역 */}
+          <div className="filters__bargain-section">
+            <div className="filters__bargain-toggle">
+              <label className="filters__toggle-label" htmlFor="bargain-toggle">
+                <span className="filters__toggle-text">급매만 보기</span>
+                <span className="filters__toggle-desc">KB시세보다 저렴한 매물</span>
+              </label>
+              <button
+                id="bargain-toggle"
+                role="switch"
+                aria-checked={filters.bargainOnly || false}
+                className={`filters__switch ${filters.bargainOnly ? 'filters__switch--active' : ''}`}
+                onClick={handleBargainToggle}
+                aria-label="급매만 보기 토글"
+              >
+                <span className="filters__switch-knob" />
+              </button>
+            </div>
+
+            {/* 급매 토글 활성 시: 최소 할인율 슬라이더 표시 */}
+            {filters.bargainOnly && (
+              <div className="filters__bargain-slider">
+                <label className="filters__slider-label">
+                  최소 할인율:
+                  <strong className="filters__slider-value">
+                    {filters.minDiscountValue || 0}%
+                  </strong>
+                </label>
+                <input
+                  type="range"
+                  className="filters__range"
+                  min="0"
+                  max="20"
+                  step="1"
+                  value={filters.minDiscountValue || 0}
+                  onChange={handleMinDiscountSlider}
+                  aria-label="최소 할인율 슬라이더"
+                />
+                <div className="filters__range-labels">
+                  <span>0%</span>
+                  <span>5%</span>
+                  <span>10%</span>
+                  <span>15%</span>
+                  <span>20%</span>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="filters__row">
             {/* 할인율 필터 */}
             <div className="filters__group">

@@ -75,18 +75,20 @@ class KBPriceService:
             - saved_count: 저장된 시세 항목 수
         """
         complex_name = complex_obj.name
-        address = complex_obj.address
+        sido = complex_obj.sido
+        sigungu = complex_obj.sigungu
         dong = complex_obj.dong
 
         logger.info(
-            "KB시세 조회 시작: [%d] %s (%s)",
-            complex_obj.id, complex_name, address or "주소 없음",
+            "KB시세 조회 시작: [%d] %s (%s %s %s)",
+            complex_obj.id, complex_name, sido, sigungu, dong or "",
         )
 
-        # 1) KB 단지 매칭 및 시세 조회
+        # 1) KB 단지 매칭 및 시세 조회 (sido+sigungu+dong → 동-level 법정동코드 → KB매칭)
         hcpc_no, prices = await self._client.get_prices_for_complex(
             complex_name=complex_name,
-            address=address,
+            sido=sido,
+            sigungu=sigungu,
             dong=dong,
         )
 
