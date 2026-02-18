@@ -115,16 +115,23 @@
   color: #c0392b;
 }
 
+/* ── 가격 표기: 기본은 전체 형태, 모바일에서 축약 ── */
+.complex-table__price--compact { display: none; }
+.complex-table__price--full    { display: inline; }
+
 /* ── 반응형 (모바일: 768px 미만) ── */
 @media (max-width: 768px) {
+  /* 3개월 거래건수 숨김 */
   .complex-table th:nth-child(7),
-  .complex-table td:nth-child(7) {
-    display: none; /* 3개월 거래건수 숨김 */
-  }
+  .complex-table td:nth-child(7) { display: none; }
 
   .complex-table th,
   .complex-table td {
-    padding: 0.6rem 0.5rem;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.4rem;
+    font-size: 0.78rem;
   }
+
+  /* 모바일: 축약 가격 표시 */
+  .complex-table__price--full    { display: none; }
+  .complex-table__price--compact { display: inline; }
 }

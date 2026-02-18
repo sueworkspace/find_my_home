@@ -51,7 +51,7 @@ export default function Header({ activeView = 'listings', onViewChange }) {
               className={`header__tab ${activeView === 'dashboard' ? 'header__tab--active' : ''}`}
               onClick={() => onViewChange('dashboard')}
             >
-              크롤링 대시보드
+              데이터 현황
             </button>
           </div>
         </nav>

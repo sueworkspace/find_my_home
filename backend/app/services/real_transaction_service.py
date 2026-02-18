@@ -148,9 +148,10 @@ def _create_complex(
     dong: str,
     build_year: Optional[int],
 ) -> int:
-    """실거래가 데이터를 바탕으로 신규 ApartmentComplex를 생성한다.
+    """실거래가 데이터를 바탕으로 신규 ApartmentComplex를 생성한다 (get_or_create).
 
-    네이버 데이터 없이 실거래가 API만으로 단지를 등록할 때 사용.
+    동일한 (sido, sigungu, name) 조합이 이미 존재하면 기존 id를 반환하여
+    중복 단지 등록을 방지합니다.
 
     Args:
         db: SQLAlchemy 세션
@@ -161,8 +162,21 @@ def _create_complex(
         build_year: 건축년도
 
     Returns:
-        생성된 ApartmentComplex의 id
+        ApartmentComplex의 id (신규 생성 또는 기존)
     """
+    # 멱등성 보장: 동일 (sido, sigungu, name) 이미 존재하면 기존 반환
+    existing = (
+        db.query(ApartmentComplex)
+        .filter(
+            ApartmentComplex.sido == sido,
+            ApartmentComplex.sigungu == sigungu,
+            ApartmentComplex.name == apt_name,
+        )
+        .first()
+    )
+    if existing:
+        return existing.id
+
     new_complex = ApartmentComplex(
         name=apt_name,
         sido=sido,

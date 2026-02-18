@@ -7,13 +7,18 @@
  */
 import './ComplexTable.css';
 
-/** 만원 → 억/만원 표기 변환 */
-function formatPrice(manwon) {
+/**
+ * 만원 → 모바일 축약 표기 (12.3억 / 9,500만)
+ * compact=true 이면 "12.3억" 형태, false 이면 "12억 3,000만" 형태
+ */
+function formatPrice(manwon, compact = false) {
   if (manwon == null) return '-';
   if (manwon >= 10000) {
-    const eok = Math.floor(manwon / 10000);
+    const eok = manwon / 10000;
+    if (compact) return `${eok % 1 === 0 ? eok : eok.toFixed(1)}억`;
+    const eokInt = Math.floor(eok);
     const rem = manwon % 10000;
-    return rem > 0 ? `${eok}억 ${rem.toLocaleString()}만` : `${eok}억`;
+    return rem > 0 ? `${eokInt}억 ${rem.toLocaleString()}만` : `${eokInt}억`;
   }
   return `${manwon.toLocaleString()}만`;
 }
@@ -23,14 +28,17 @@ function sqmToPyeong(sqm) {
   return Math.round(sqm / 3.3058);
 }
 
-/** 할인율 표시 + 색상 클래스 */
+/** 할인율 표시 + 색상 클래스 + 자연어 툴팁 */
 function DiscountBadge({ rate }) {
   if (rate == null) return <span>-</span>;
   const isPositive = rate > 0;
   const cls = isPositive ? 'complex-table__badge--positive' : 'complex-table__badge--negative';
   const sign = isPositive ? '+' : '';
+  const tooltip = isPositive
+    ? `KB시세보다 ${rate.toFixed(1)}% 낮게 거래됨`
+    : `KB시세보다 ${Math.abs(rate).toFixed(1)}% 높게 거래됨`;
   return (
-    <span className={`complex-table__badge ${cls}`}>
+    <span className={`complex-table__badge ${cls}`} title={tooltip}>
       {sign}{rate.toFixed(1)}%
     </span>
   );
@@ -76,8 +84,14 @@ export default function ComplexTable({ complexes }) {
                 {item.areaSqm.toFixed(1)}㎡
                 <span className="complex-table__pyeong">({sqmToPyeong(item.areaSqm)}평)</span>
               </td>
-              <td className="complex-table__price">{formatPrice(item.kbPriceMid)}</td>
-              <td className="complex-table__price">{formatPrice(item.recentDealPrice)}</td>
+              <td className="complex-table__price">
+                <span className="complex-table__price--full">{formatPrice(item.kbPriceMid)}</span>
+                <span className="complex-table__price--compact">{formatPrice(item.kbPriceMid, true)}</span>
+              </td>
+              <td className="complex-table__price">
+                <span className="complex-table__price--full">{formatPrice(item.recentDealPrice)}</span>
+                <span className="complex-table__price--compact">{formatPrice(item.recentDealPrice, true)}</span>
+              </td>
               <td>
                 <DiscountBadge rate={item.dealDiscountRate} />
               </td>

@@ -157,7 +157,7 @@ class KBPriceService:
 
             if not complexes:
                 logger.warning(
-                    "DB에 단지 데이터 없음: %s %s (네이버 크롤링을 먼저 실행하세요)",
+                    "DB에 단지 데이터 없음: %s %s (실거래가 수집을 먼저 실행하세요)",
                     sido, sigungu,
                 )
                 return self._stats.copy()

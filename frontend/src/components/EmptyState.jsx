@@ -44,7 +44,7 @@ export default function EmptyState({ type, message }) {
         <h3 className="empty-state__title">지역을 선택해주세요</h3>
         <p className="empty-state__desc">
           시/도와 시/군/구를 선택하면<br />
-          해당 지역의 급매물 목록이 표시됩니다.
+          KB시세 대비 실거래가 비교 결과가 표시됩니다.
         </p>
       </div>
     );
@@ -76,7 +76,7 @@ export default function EmptyState({ type, message }) {
     );
   }
 
-  /* 매물 데이터 없음 상태 */
+  /* 비교 데이터 없음 상태 */
   if (type === 'no-data') {
     return (
       <div className="empty-state">
@@ -94,10 +94,10 @@ export default function EmptyState({ type, message }) {
           <line x1="20" y1="28" x2="44" y2="28" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
           <line x1="20" y1="36" x2="36" y2="36" stroke="#CBD5E1" strokeWidth="2" strokeLinecap="round" />
         </svg>
-        <h3 className="empty-state__title">매물 데이터가 없습니다</h3>
+        <h3 className="empty-state__title">비교 데이터가 없습니다</h3>
         <p className="empty-state__desc">
-          선택한 지역에 등록된 매물이 없습니다.<br />
-          다른 지역을 선택해보세요.
+          KB시세와 실거래가가 모두 수집된 단지만 표시됩니다.<br />
+          데이터 수집 후 조회해주세요.
         </p>
       </div>
     );

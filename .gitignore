@@ -22,3 +22,8 @@ dist/
 
 # Test files
 backend/test_crawler*.py
+
+# Batch script runtime files (log + progress)
+backend/*.log
+backend/scripts/collect_progress.json
+backend/scripts/kb_progress.json
