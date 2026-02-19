@@ -273,14 +273,14 @@ function BargainAlertPanel() {
               alerts.items.map((item, idx) => (
                 <div className="dashboard__alert-item" key={`${item.complexId}-${item.areaSqm}-${idx}`}>
                   <div className="dashboard__alert-item-main">
-                    <span className="dashboard__alert-item-name">{item.name}</span>
-                    <span className={`dashboard__alert-item-rate ${item.dealDiscountRate > 0 ? 'dashboard__alert-item-rate--positive' : ''}`}>
-                      {item.dealDiscountRate != null ? `${item.dealDiscountRate > 0 ? '+' : ''}${item.dealDiscountRate.toFixed(1)}%` : '-'}
+                    <span className="dashboard__alert-item-name">{item.complexName}</span>
+                    <span className={`dashboard__alert-item-rate ${item.discountRate > 0 ? 'dashboard__alert-item-rate--positive' : ''}`}>
+                      {item.discountRate != null ? `${item.discountRate > 0 ? '+' : ''}${item.discountRate.toFixed(1)}%` : '-'}
                     </span>
                   </div>
                   <div className="dashboard__alert-item-sub">
                     <span>{item.sigungu}{item.dong ? ` ${item.dong}` : ''}</span>
-                    <span>KB {formatPriceCompact(item.kbPriceMid)}</span>
+                    <span>KB {formatPriceCompact(item.kbPrice)}</span>
                     <span>실거래 {formatPriceCompact(item.recentDealPrice)}</span>
                   </div>
                 </div>
