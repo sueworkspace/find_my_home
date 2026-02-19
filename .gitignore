@@ -17,13 +17,15 @@ dist/
 # OS
 .DS_Store
 
-# Claude
+# Claude / OMC tooling state
 .claude/
+.omc/
 
 # Test files
 backend/test_crawler*.py
 
 # Batch script runtime files (log + progress)
 backend/*.log
+backend/scripts/*.log
 backend/scripts/collect_progress.json
 backend/scripts/kb_progress.json
