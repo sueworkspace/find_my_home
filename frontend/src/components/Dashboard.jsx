@@ -9,7 +9,7 @@
  * - 60초 자동 새로고침 + 수동 새로고침
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getDashboardSummary, getSchedulerStatus, getRegionBreakdown } from '../services/api';
+import { getDashboardSummary, getSchedulerStatus, getRegionBreakdown, getAlertsBargains } from '../services/api';
 import './Dashboard.css';
 
 /** 자동 새로고침 간격 (ms) */
@@ -34,6 +34,18 @@ function formatDate(dateStr) {
     year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+/**
+ * 만원 → 축약 가격 표기 (12.3억 / 9,500만)
+ */
+function formatPriceCompact(manwon) {
+  if (manwon == null) return '-';
+  if (manwon >= 10000) {
+    const eok = manwon / 10000;
+    return `${eok % 1 === 0 ? eok : eok.toFixed(1)}억`;
+  }
+  return `${manwon.toLocaleString()}만`;
 }
 
 
@@ -186,6 +198,109 @@ function DashboardRegionTable({ regions }) {
 }
 
 
+/**
+ * BargainAlertPanel - 급매 알림 패널
+ * 최근 N시간 내 등장한 급매 단지 목록을 표시합니다.
+ */
+
+/** sinceHours 버튼 옵션 */
+const SINCE_HOURS_OPTIONS = [6, 12, 24, 48, 72];
+
+function BargainAlertPanel() {
+  const [minDiscount, setMinDiscount] = useState(5);
+  const [sinceHours, setSinceHours] = useState(24);
+  const [alerts, setAlerts] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  /** 급매 알림 데이터 조회 */
+  const fetchAlerts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getAlertsBargains({ minDiscount, sinceHours, limit: 20 });
+      setAlerts(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [minDiscount, sinceHours]);
+
+  /* 조건 변경 시 자동 재조회 */
+  useEffect(() => { fetchAlerts(); }, [fetchAlerts]);
+
+  return (
+    <div className="dashboard__alert-panel">
+      {/* 조건 설정: 최소 할인율 슬라이더 + 기간 버튼 */}
+      <div className="dashboard__alert-controls">
+        <div className="dashboard__alert-slider-wrap">
+          <label className="dashboard__alert-label">
+            최소 할인율: <strong>{minDiscount}%</strong>
+          </label>
+          <input
+            type="range"
+            className="dashboard__alert-range"
+            min="1"
+            max="20"
+            step="1"
+            value={minDiscount}
+            onChange={(e) => setMinDiscount(Number(e.target.value))}
+            aria-label="최소 할인율 슬라이더"
+          />
+        </div>
+
+        <div className="dashboard__alert-hours">
+          {SINCE_HOURS_OPTIONS.map((h) => (
+            <button
+              key={h}
+              className={`dashboard__alert-hour-btn ${sinceHours === h ? 'dashboard__alert-hour-btn--active' : ''}`}
+              onClick={() => setSinceHours(h)}
+            >
+              {h}시간
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 알림 목록 */}
+      <div className="dashboard__alert-list">
+        {loading && <div className="dashboard__alert-item--empty">불러오는 중...</div>}
+        {error && <div className="dashboard__alert-item--empty dashboard__alert-item--error">{error}</div>}
+        {!loading && !error && alerts && (
+          <>
+            {Array.isArray(alerts.items) && alerts.items.length > 0 ? (
+              alerts.items.map((item, idx) => (
+                <div className="dashboard__alert-item" key={`${item.complexId}-${item.areaSqm}-${idx}`}>
+                  <div className="dashboard__alert-item-main">
+                    <span className="dashboard__alert-item-name">{item.name}</span>
+                    <span className={`dashboard__alert-item-rate ${item.dealDiscountRate > 0 ? 'dashboard__alert-item-rate--positive' : ''}`}>
+                      {item.dealDiscountRate != null ? `${item.dealDiscountRate > 0 ? '+' : ''}${item.dealDiscountRate.toFixed(1)}%` : '-'}
+                    </span>
+                  </div>
+                  <div className="dashboard__alert-item-sub">
+                    <span>{item.sigungu}{item.dong ? ` ${item.dong}` : ''}</span>
+                    <span>KB {formatPriceCompact(item.kbPriceMid)}</span>
+                    <span>실거래 {formatPriceCompact(item.recentDealPrice)}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="dashboard__alert-item--empty">
+                조건에 맞는 급매가 없습니다.
+              </div>
+            )}
+            {alerts.total != null && (
+              <div className="dashboard__alert-total">총 {alerts.total}건</div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
 /* ─── 메인 대시보드 ─── */
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
@@ -247,6 +362,14 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
+      {/* 급매 알림 */}
+      <section className="dashboard__section">
+        <div className="dashboard__section-header">
+          <h2 className="dashboard__section-title">급매 알림</h2>
+        </div>
+        <BargainAlertPanel />
+      </section>
+
       {/* DB 요약 통계 */}
       <section className="dashboard__section">
         <div className="dashboard__section-header">

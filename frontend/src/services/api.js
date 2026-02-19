@@ -126,3 +126,21 @@ export async function getComplexes(options = {}) {
   const data = await response.json();
   return { total: data.total, items: convertKeys(data.items) };
 }
+
+/**
+ * 급매 알림 조회
+ * @param {object} [options]
+ * @param {number} [options.minDiscount=5] - 최소 할인율
+ * @param {number} [options.sinceHours=24] - 최근 N시간 이내
+ * @param {number} [options.limit=20] - 최대 건수
+ */
+export async function getAlertsBargains(options = {}) {
+  const params = new URLSearchParams();
+  if (options.minDiscount != null) params.set('min_discount', String(options.minDiscount));
+  if (options.sinceHours != null) params.set('since_hours', String(options.sinceHours));
+  if (options.limit != null) params.set('limit', String(options.limit));
+
+  const response = await fetch(`${API_BASE_URL}/alerts/bargains?${params}`);
+  if (!response.ok) throw new Error('급매 알림을 불러오는 데 실패했습니다.');
+  return convertKeys(await response.json());
+}
