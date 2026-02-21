@@ -2,30 +2,30 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
+dist/
+build/
+.venv/
 venv/
-.env
+*.db
 
 # Node
 node_modules/
-dist/
+frontend/dist/
+
+# Environment
+.env
+.env.local
+.env.*.local
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
+*.swo
 
 # OS
 .DS_Store
+Thumbs.db
 
-# Claude / OMC tooling state
-.claude/
-.omc/
-
-# Test files
-backend/test_crawler*.py
-
-# Batch script runtime files (log + progress)
-backend/*.log
-backend/scripts/*.log
-backend/scripts/collect_progress.json
-backend/scripts/kb_progress.json
+# Docker
+*.log
