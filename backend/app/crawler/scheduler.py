@@ -27,34 +27,32 @@ _scheduler: Optional[AsyncIOScheduler] = None
 # 개별 작업 함수
 # ──────────────────────────────────────────
 
-async def run_kb_price_job() -> List[Dict[str, Any]]:
-    """KB시세 수집 작업.
+async def run_kb_price_job() -> Dict[str, Any]:
+    """KB시세 수집 작업 — 동 단위 병렬 고속 수집.
 
-    DB에 등록된 아파트 단지에 대해 KB시세를 조회하여 저장합니다.
+    기존 순차 수집(24시간+) 대비 동 단위 배치+병렬로 대폭 빠름.
+    실행 전 ApartmentComplex.dong_code가 채워져 있어야 함.
     """
     from app.services.kb_price_service import KBPriceService
 
     start_time = datetime.now()
-    logger.info("===== KB시세 수집 시작: %s =====", start_time.isoformat())
+    logger.info("===== KB시세 고속 수집 시작: %s =====", start_time.isoformat())
 
     service = KBPriceService()
     try:
-        results = await service.update_kb_prices_for_all_regions(
-            settings.TARGET_REGIONS,
-        )
+        # 동 단위 배치 + 병렬 처리 (concurrency=5)
+        stats = await service.update_kb_prices_parallel(concurrency=5)
 
-        total_saved = sum(r.get("prices_saved", 0) for r in results)
         elapsed = (datetime.now() - start_time).total_seconds()
-
         logger.info(
-            "KB시세 수집 완료: %.1f초, %d개 지역, %d개 시세 저장",
-            elapsed, len(results), total_saved,
+            "KB시세 수집 완료: %.1f초 (%.1f분), 저장=%d",
+            elapsed, elapsed / 60, stats.get("saved", 0),
         )
-        return results
+        return stats
 
     except Exception as e:
         logger.error("KB시세 수집 실패: %s", str(e), exc_info=True)
-        return []
+        return {}
     finally:
         await service.close()
 

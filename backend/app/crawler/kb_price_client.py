@@ -1191,6 +1191,21 @@ DONG_LAWDCD_MAP: Dict[str, Dict[str, Dict[str, str]]] = {
             "교동":      "4167000800",
             "단현동":    "4167001100",
         },
+        # ── Sprint 15: 동두천시 동-level 추가 ──
+        "동두천시": {
+            "송내동":    "4125010100",
+            "지행동":    "4125010200",
+            "생연동":    "4125010300",
+            "광암동":    "4125010400",
+            "걸산동":    "4125010500",
+            "보산동":    "4125010600",
+            "동두천동":  "4125010700",
+            "안흥동":    "4125010800",
+            "상봉암동":  "4125010900",
+            "하봉암동":  "4125011000",
+            "탑동동":    "4125011100",
+            "상패동":    "4125011200",
+        },
     },
     "인천광역시": {
         "중구": {
@@ -2625,6 +2640,48 @@ class KBPriceClient:
             return best_match
 
         logger.warning("KB 매칭 실패: '%s' (best_score=%d)", complex_name, best_score)
+        return None
+
+    def match_from_list(
+        self,
+        complex_name: str,
+        kb_complexes: List[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        """이미 조회된 KB 단지 목록에서 이름으로 매칭한다.
+
+        get_complex_list()를 재호출하지 않고 캐시된 목록을 재사용할 수 있어,
+        동 단위 배치 처리 시 API 호출 횟수를 대폭 줄인다.
+
+        Args:
+            complex_name: 아파트 단지명 (정규화 전)
+            kb_complexes: get_complex_list()의 반환값 (단지 목록)
+
+        Returns:
+            매칭된 KB 단지 dict, 실패 시 None
+        """
+        clean_target = _normalize_name(complex_name)
+        best_match = None
+        best_score = 0
+
+        for cx in kb_complexes:
+            kb_name = cx.get("단지명", "")
+            clean_kb = _normalize_name(kb_name)
+            score = _calc_match_score(clean_target, clean_kb)
+            if score > best_score:
+                best_score = score
+                best_match = cx
+
+        if best_match and best_score >= 40:
+            logger.info(
+                "KB 매칭(캐시): '%s' -> '%s' (ID=%s, score=%d)",
+                complex_name,
+                best_match.get("단지명", "?"),
+                best_match.get("단지기본일련번호", "?"),
+                best_score,
+            )
+            return best_match
+
+        logger.debug("KB 매칭 실패(캐시): '%s' (best_score=%d)", complex_name, best_score)
         return None
 
 

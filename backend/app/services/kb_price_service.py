@@ -10,7 +10,9 @@ KB부동산에서 단지별 KB시세를 조회하고 DB에 저장합니다.
 - 배치 처리: 전체 또는 특정 지역 단지 일괄 처리
 """
 
+import asyncio
 import logging
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
@@ -264,6 +266,170 @@ class KBPriceService:
 
         logger.info("KB시세 전체 수집 완료: %d개 지역 처리", len(results))
         return results
+
+    # ──────────────────────────────────────────
+    # 동 단위 병렬 수집 (고속 모드)
+    # ──────────────────────────────────────────
+
+    async def update_kb_prices_parallel(
+        self,
+        concurrency: int = 5,
+    ) -> Dict[str, Any]:
+        """동(dong_code) 단위 병렬 KB시세 수집 — 기존 대비 10~25배 빠름.
+
+        기존 방식(단지별 순차):
+          단지마다 get_complex_list 호출 → 16,037 × 1.5초 = 24시간 이상
+
+        개선 방식(동 단위 배치 + 병렬):
+          1) dong_code로 단지 그룹화 → get_complex_list는 동당 1번만 호출
+          2) Semaphore(concurrency)로 N개 동 동시 처리
+
+        Args:
+            concurrency: 동시 처리할 동(dong) 수 (기본 5)
+
+        Returns:
+            전체 통계 dict
+        """
+        import time
+        start = time.time()
+        logger.info("===== KB시세 고속 수집 시작 (concurrency=%d) =====", concurrency)
+
+        db = SessionLocal()
+        try:
+            # dong_code가 있는 단지만 대상 (없으면 KB API 조회 불가)
+            complexes = (
+                db.query(ApartmentComplex)
+                .filter(ApartmentComplex.dong_code.isnot(None))
+                .all()
+            )
+
+            if not complexes:
+                logger.warning("dong_code가 설정된 단지 없음 — populate_dong_codes 먼저 실행 필요")
+                return {"total_complexes": 0, "dong_groups": 0}
+
+            # dong_code별로 그룹화
+            dong_groups: Dict[str, List[ApartmentComplex]] = defaultdict(list)
+            for c in complexes:
+                dong_groups[c.dong_code].append(c)
+
+            logger.info(
+                "대상: %d개 단지 / %d개 동 그룹 (평균 %.1f개/동)",
+                len(complexes),
+                len(dong_groups),
+                len(complexes) / max(len(dong_groups), 1),
+            )
+
+            # 각 동 그룹을 Semaphore로 병렬 처리
+            semaphore = asyncio.Semaphore(concurrency)
+            tasks = [
+                self._process_dong_group(dong_code, group, semaphore, db)
+                for dong_code, group in dong_groups.items()
+            ]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 통계 집계
+            total_stats: Dict[str, int] = {
+                "total_complexes": len(complexes),
+                "dong_groups": len(dong_groups),
+                "matched": 0,
+                "saved": 0,
+                "failed": 0,
+                "errors": 0,
+            }
+            for r in results:
+                if isinstance(r, Exception):
+                    total_stats["errors"] += 1
+                    logger.error("동 처리 예외: %s", str(r))
+                elif isinstance(r, dict):
+                    total_stats["matched"] += r.get("matched", 0)
+                    total_stats["saved"] += r.get("saved", 0)
+                    total_stats["failed"] += r.get("failed", 0)
+
+            elapsed = time.time() - start
+            logger.info(
+                "===== KB시세 고속 수집 완료 =====\n"
+                "  소요시간: %.1f초 (%.1f분)\n"
+                "  처리 동 수: %d개\n"
+                "  매칭 성공: %d개\n"
+                "  시세 저장: %d개 항목\n"
+                "  매칭 실패: %d개\n"
+                "  에러: %d건",
+                elapsed, elapsed / 60,
+                len(dong_groups),
+                total_stats["matched"],
+                total_stats["saved"],
+                total_stats["failed"],
+                total_stats["errors"],
+            )
+            return total_stats
+
+        finally:
+            db.close()
+
+    async def _process_dong_group(
+        self,
+        dong_code: str,
+        complexes: List[ApartmentComplex],
+        semaphore: asyncio.Semaphore,
+        db: Session,
+    ) -> Dict[str, int]:
+        """하나의 dong_code에 속한 단지들의 KB시세를 배치 처리.
+
+        get_complex_list를 1번만 호출하고, 결과를 해당 동의 모든 단지에 재사용.
+
+        Args:
+            dong_code: 법정동코드 10자리
+            complexes: 해당 동의 ApartmentComplex 목록
+            semaphore: 동시 처리 수 제한
+            db: SQLAlchemy 세션
+
+        Returns:
+            {"matched": int, "saved": int, "failed": int}
+        """
+        async with semaphore:
+            stats = {"matched": 0, "saved": 0, "failed": 0}
+
+            # 1. 이 동의 KB 단지 목록 1번만 조회 (핵심 최적화)
+            try:
+                kb_list = await self._client.get_complex_list(dong_code)
+            except Exception as e:
+                logger.error("get_complex_list 실패 dong_code=%s: %s", dong_code, e)
+                stats["failed"] = len(complexes)
+                return stats
+
+            if not kb_list:
+                logger.debug("KB 단지 목록 없음: dong_code=%s", dong_code)
+                stats["failed"] = len(complexes)
+                return stats
+
+            # 2. 각 DB 단지를 KB 목록에서 매칭 후 시세 조회
+            for complex_obj in complexes:
+                try:
+                    matched = self._client.match_from_list(complex_obj.name, kb_list)
+                    if not matched:
+                        stats["failed"] += 1
+                        continue
+
+                    kb_id = int(matched["단지기본일련번호"])
+                    prices = await self._client.get_all_prices(kb_id)
+
+                    if prices:
+                        saved = _upsert_kb_prices(db, complex_obj.id, prices)
+                        db.commit()
+                        stats["matched"] += 1
+                        stats["saved"] += saved
+                    else:
+                        stats["failed"] += 1
+
+                except Exception as e:
+                    db.rollback()
+                    stats["failed"] += 1
+                    logger.error(
+                        "단지 처리 실패 [%d] %s: %s",
+                        complex_obj.id, complex_obj.name, e,
+                    )
+
+            return stats
 
 
 # ──────────────────────────────────────────
