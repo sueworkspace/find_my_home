@@ -3,6 +3,5 @@ __pycache__/
 *.pyc
 .env
 test_*.py
-scripts/
 *.egg-info/
 .git/
