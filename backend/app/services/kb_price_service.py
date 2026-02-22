@@ -473,13 +473,16 @@ def _upsert_kb_prices(
         ).first()
 
         if existing:
-            # 기존 시세 갱신
+            # 기존 시세 갱신 (가격이 동일해도 updated_at을 명시적으로 갱신해
+            # SQLAlchemy가 반드시 UPDATE를 발행하도록 함)
+            from datetime import datetime
             if price_lower is not None:
                 existing.price_lower = price_lower
             if price_mid is not None:
                 existing.price_mid = price_mid
             if price_upper is not None:
                 existing.price_upper = price_upper
+            existing.updated_at = datetime.now()
             logger.debug(
                 "KB시세 갱신: complex_id=%d, area=%.2f, "
                 "lower=%s, mid=%s, upper=%s",
