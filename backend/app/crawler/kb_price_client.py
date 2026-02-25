@@ -12,6 +12,7 @@ kbland.kr 프론트엔드가 호출하는 api.kbland.kr 내부 API를 역분석�
 """
 
 import asyncio
+import difflib
 import logging
 import re
 from typing import Any, Dict, List, Optional, Tuple
@@ -2945,8 +2946,8 @@ class KBPriceClient:
             logger.warning("법정동코드 없음: %s %s %s", sido, sigungu, dong or "")
             return None, []
 
-        # KB 단지 매칭
-        matched = await self.match_complex(complex_name, lawdcd)
+        # KB 단지 매칭 (dong 전달하여 pre-filter 활성화)
+        matched = await self.match_complex(complex_name, lawdcd, dong=dong)
         if not matched:
             return None, []
 
@@ -2966,14 +2967,17 @@ class KBPriceClient:
         self,
         complex_name: str,
         lawdcd: str,
+        dong: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """네이버 부동산 단지명으로 KB 단지를 매칭한다.
 
         해당 지역의 단지 목록에서 이름이 가장 유사한 단지를 찾는다.
+        dong이 주어지면 주소 필드로 pre-filter하여 후보를 좁힌다.
 
         Args:
             complex_name: 아파트 단지명 (네이버 기준)
             lawdcd: 법정동코드 (10자리)
+            dong: 동 이름 (pre-filter용)
 
         Returns:
             매칭된 KB 단지 정보 dict, 실패 시 None
@@ -2984,57 +2988,39 @@ class KBPriceClient:
             logger.warning("KB 단지 목록 조회 실패: lawdcd=%s", lawdcd)
             return None
 
-        # 단지명 정규화 후 매칭
-        clean_target = _normalize_name(complex_name)
-
-        best_match = None
-        best_score = 0
-
-        for cx in complexes:
-            kb_name = cx.get("단지명", "")
-            clean_kb = _normalize_name(kb_name)
-
-            score = _calc_match_score(clean_target, clean_kb)
-            if score > best_score:
-                best_score = score
-                best_match = cx
-
-        # 최소 점수 기준 (40점 이상만 매칭 성공)
-        if best_match and best_score >= 40:
-            logger.info(
-                "KB 매칭 성공: '%s' -> '%s' (ID=%s, score=%d)",
-                complex_name,
-                best_match.get("단지명", "?"),
-                best_match.get("단지기본일련번호", "?"),
-                best_score,
-            )
-            return best_match
-
-        logger.warning("KB 매칭 실패: '%s' (best_score=%d)", complex_name, best_score)
-        return None
+        # match_from_list에 위임 (dong pre-filter + 다단계 스코어링)
+        return self.match_from_list(complex_name, complexes, dong=dong)
 
     def match_from_list(
         self,
         complex_name: str,
         kb_complexes: List[Dict[str, Any]],
+        dong: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         """이미 조회된 KB 단지 목록에서 이름으로 매칭한다.
 
         get_complex_list()를 재호출하지 않고 캐시된 목록을 재사용할 수 있어,
         동 단위 배치 처리 시 API 호출 횟수를 대폭 줄인다.
 
+        dong이 주어지면 주소 필드로 pre-filter하여 후보를 좁힌다
+        (5자리 시군구코드 fallback 시 300+개 → 20~30개로 축소).
+
         Args:
             complex_name: 아파트 단지명 (정규화 전)
             kb_complexes: get_complex_list()의 반환값 (단지 목록)
+            dong: 동 이름 (예: "철산동"), pre-filter에 사용
 
         Returns:
             매칭된 KB 단지 dict, 실패 시 None
         """
+        # 동 이름으로 후보 축소 (5자리 fallback 시 핵심 최적화)
+        candidates = _filter_by_dong(kb_complexes, dong) if dong else kb_complexes
+
         clean_target = _normalize_name(complex_name)
         best_match = None
         best_score = 0
 
-        for cx in kb_complexes:
+        for cx in candidates:
             kb_name = cx.get("단지명", "")
             clean_kb = _normalize_name(kb_name)
             score = _calc_match_score(clean_target, clean_kb)
@@ -3042,7 +3028,7 @@ class KBPriceClient:
                 best_score = score
                 best_match = cx
 
-        if best_match and best_score >= 40:
+        if best_match and best_score >= 55:
             logger.info(
                 "KB 매칭(캐시): '%s' -> '%s' (ID=%s, score=%d)",
                 complex_name,
@@ -3052,7 +3038,30 @@ class KBPriceClient:
             )
             return best_match
 
-        logger.debug("KB 매칭 실패(캐시): '%s' (best_score=%d)", complex_name, best_score)
+        # pre-filter 실패 시 전체 리스트로 재시도
+        if dong and candidates != kb_complexes:
+            logger.debug(
+                "KB 동 필터 매칭 실패, 전체 리스트 재시도: '%s' dong=%s",
+                complex_name, dong,
+            )
+            return self.match_from_list(complex_name, kb_complexes, dong=None)
+
+        # 매칭 실패 시 top-3 후보 디버그 로깅
+        if logger.isEnabledFor(logging.DEBUG):
+            all_scores = []
+            for cx in candidates:
+                kb_name = cx.get("단지명", "")
+                clean_kb = _normalize_name(kb_name)
+                s = _calc_match_score(clean_target, clean_kb)
+                if s > 0:
+                    all_scores.append((s, kb_name))
+            all_scores.sort(reverse=True)
+            top3 = all_scores[:3]
+            logger.debug(
+                "KB 매칭 실패(캐시): '%s' (정규화: '%s') | 후보 %d개 | top3: %s",
+                complex_name, clean_target, len(candidates), top3,
+            )
+
         return None
 
 
@@ -3061,19 +3070,54 @@ class KBPriceClient:
 # ──────────────────────────────────────────
 
 def _normalize_name(name: str) -> str:
-    """단지명 정규화: 공백, 특수문자, 괄호 내용 제거."""
+    """단지명 정규화 (구분 정보 보존 버전).
+
+    N단지/N차 정보를 보존하고, 괄호 내용에서 단지 번호를 추출하여 유지한다.
+    "아파트" 접미사는 제거한다.
+    """
+    # 괄호 안 단지/차 번호 추출: "(1단지)" → suffix로 보존
+    danji = re.search(r"\((\d+단지)\)", name)
+    cha = re.search(r"\((\d+차)\)", name)
+    suffix = ""
+    if danji:
+        suffix = danji.group(1)
+    elif cha:
+        suffix = cha.group(1)
+
     # 괄호 및 괄호 내용 제거
     cleaned = re.sub(r"\([^)]*\)", "", name)
-    # 숫자+단지/차 패턴 제거
-    cleaned = re.sub(r"\d+단지$", "", cleaned)
-    cleaned = re.sub(r"\d+차$", "", cleaned)
-    # 공백, 특수문자 제거
+    # "아파트" 접미사 제거 (구분 정보가 아님)
+    cleaned = re.sub(r"아파트$", "", cleaned)
+    # 괄호에서 추출한 단지/차 번호 붙이기
+    if suffix and suffix not in cleaned:
+        cleaned = cleaned + suffix
+    # 공백, 특수문자 제거 (숫자는 보존)
+    cleaned = re.sub(r"[^\w가-힣0-9]", "", cleaned.lower())
+    return cleaned.strip()
+
+
+def _normalize_name_loose(name: str) -> str:
+    """느슨한 정규화: N단지/N차도 제거 (fuzzy 매칭 fallback용)."""
+    cleaned = re.sub(r"\([^)]*\)", "", name)
+    cleaned = re.sub(r"\d+단지", "", cleaned)
+    cleaned = re.sub(r"\d+차", "", cleaned)
+    cleaned = re.sub(r"아파트", "", cleaned)
     cleaned = re.sub(r"[^\w가-힣]", "", cleaned.lower())
     return cleaned.strip()
 
 
 def _calc_match_score(target: str, candidate: str) -> int:
-    """두 단지명의 매칭 점수를 계산한다.
+    """두 단지명의 매칭 점수를 계산한다 (다단계 스코어링).
+
+    Scoring tiers:
+      100: 정규화 완전 일치
+       95: loose 정규화 후 완전 일치 (N단지/N차 차이만)
+       90: 부분 포함 + 길이 비율 >= 0.7
+       80: 부분 포함 + 길이 비율 >= 0.5
+       70: 부분 포함 + 길이 비율 < 0.5
+    60-85: 토큰 Jaccard 유사도
+    40-70: SequenceMatcher ratio >= 0.6
+        0: 매칭 안됨
 
     Args:
         target: 매칭 대상 (정규화된 단지명)
@@ -3085,19 +3129,76 @@ def _calc_match_score(target: str, candidate: str) -> int:
     if not target or not candidate:
         return 0
 
-    # 완전 일치
+    # Level 1: 완전 일치
     if target == candidate:
         return 100
 
-    # 부분 포함 (한쪽이 다른쪽에 포함)
-    if target in candidate or candidate in target:
-        return 70
+    # Level 2: loose 정규화 후 완전 일치 (N단지/N차 차이만 있는 경우)
+    target_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", target)).strip()
+    cand_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", candidate)).strip()
+    if target_loose and cand_loose and target_loose == cand_loose:
+        return 95
 
-    # 공통 한글 단어 (2글자 이상)
-    words_t = set(re.findall(r"[가-힣]{2,}", target))
-    words_c = set(re.findall(r"[가-힣]{2,}", candidate))
-    common = words_t & words_c
-    if common:
-        return 40
+    # Level 3: 부분 포함 (길이 비율에 따라 차등)
+    if target in candidate or candidate in target:
+        shorter = min(len(target), len(candidate))
+        longer = max(len(target), len(candidate))
+        ratio = shorter / longer if longer > 0 else 0
+        if ratio >= 0.7:
+            return 90
+        elif ratio >= 0.5:
+            return 80
+        else:
+            return 70
+
+    # Level 4: 토큰 Jaccard 유사도 (한글 2+글자 + 숫자단지/차)
+    tokens_t = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", target))
+    tokens_c = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", candidate))
+    if tokens_t and tokens_c:
+        intersection = tokens_t & tokens_c
+        union = tokens_t | tokens_c
+        jaccard = len(intersection) / len(union) if union else 0
+        if jaccard > 0.3:
+            # 0.3~1.0 → 60~85
+            token_score = int(60 + (jaccard - 0.3) / 0.7 * 25)
+            return min(token_score, 85)
+
+    # Level 5: Fuzzy match (SequenceMatcher)
+    seq_ratio = difflib.SequenceMatcher(None, target, candidate).ratio()
+    if seq_ratio >= 0.6:
+        # 0.6~1.0 → 40~70
+        fuzzy_score = int(40 + (seq_ratio - 0.6) / 0.4 * 30)
+        return min(fuzzy_score, 70)
 
     return 0
+
+
+def _filter_by_dong(
+    kb_complexes: List[Dict[str, Any]],
+    dong: str,
+) -> List[Dict[str, Any]]:
+    """KB 단지 목록을 동 이름으로 필터링.
+
+    5자리 시군구코드 fallback으로 받은 전체 리스트에서
+    주소 필드에 동 이름이 포함된 단지만 추출한다.
+
+    Args:
+        kb_complexes: KB API 반환 단지 목록
+        dong: 동 이름 (예: "철산동")
+
+    Returns:
+        필터링된 리스트. 결과가 비어있으면 원본 반환.
+    """
+    if not dong:
+        return kb_complexes
+
+    # 읍/면 + 리 형식 처리: "기장읍 대라리" → "기장읍"으로도 매칭
+    dong_parts = dong.split()
+    dong_main = dong_parts[0] if dong_parts else dong
+
+    filtered = [
+        cx for cx in kb_complexes
+        if dong_main in (cx.get("주소", "") or "")
+    ]
+
+    return filtered if filtered else kb_complexes

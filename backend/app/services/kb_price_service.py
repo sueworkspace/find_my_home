@@ -405,7 +405,9 @@ class KBPriceService:
             # 2. 각 DB 단지를 KB 목록에서 매칭 후 시세 조회
             for complex_obj in complexes:
                 try:
-                    matched = self._client.match_from_list(complex_obj.name, kb_list)
+                    matched = self._client.match_from_list(
+                        complex_obj.name, kb_list, dong=complex_obj.dong,
+                    )
                     if not matched:
                         stats["failed"] += 1
                         continue
