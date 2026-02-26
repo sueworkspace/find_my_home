@@ -31,6 +31,17 @@
   width: 100%;
 }
 
+/* 검색바 아래 지역 선택기 간격 */
+.app__region-row {
+  margin-top: var(--space-sm);
+}
+
+/* 검색어 라벨 (툴바 내) */
+.app__search-label {
+  font-weight: 400;
+  color: var(--color-accent, #3b82f6);
+}
+
 /* 컨텐츠 섹션 최소 높이 (로딩/빈 상태 표시 영역) */
 .app__section--content {
   min-height: 300px;

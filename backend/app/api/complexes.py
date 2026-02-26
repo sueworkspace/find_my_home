@@ -26,6 +26,7 @@ router = APIRouter(prefix="/api/complexes", tags=["complexes"])
 def list_complexes(
     sido: Optional[str] = Query(None, description="시/도 필터"),
     sigungu: Optional[str] = Query(None, description="시/군/구 필터"),
+    name: Optional[str] = Query(None, description="단지명 검색 (부분 일치)"),
     min_discount: Optional[float] = Query(None, description="최소 할인율 (급매 필터, 예: 0)"),
     sort_by: str = Query("deal_discount_rate", description="정렬 기준: deal_discount_rate | kb_price_mid | recent_deal_price | deal_count_3m"),
     order: str = Query("desc", description="정렬 방향: desc | asc"),
@@ -50,6 +51,10 @@ def list_complexes(
         query = query.filter(ApartmentComplex.sido == sido)
     if sigungu:
         query = query.filter(ApartmentComplex.sigungu == sigungu)
+
+    # 단지명 검색 필터 (ILIKE: 대소문자 무시 부분 일치)
+    if name:
+        query = query.filter(ApartmentComplex.name.ilike(f"%{name}%"))
 
     # 급매 필터
     if min_discount is not None:

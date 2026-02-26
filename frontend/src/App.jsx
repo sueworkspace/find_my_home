@@ -2,13 +2,14 @@
  * App 컴포넌트 (최상위)
  *
  * 역할:
- * - 전체 앱 레이아웃 구성 (Header, RegionSelector, Filters, ComplexTable, Dashboard)
+ * - 전체 앱 레이아웃 구성 (Header, SearchBar, RegionSelector, Filters, ComplexTable, Dashboard)
  * - 탭 전환: 단지 비교 ↔ 데이터 현황
- * - 지역 선택 → API 호출 → KB시세 vs 실거래가 비교 단지 목록 표시
+ * - 단지명 검색 또는 지역 선택 → API 호출 → KB시세 vs 실거래가 비교 단지 목록 표시
  * - 클라이언트 사이드 필터링 (할인율, 가격, 면적, 급매)
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef } from 'react';
 import Header from './components/Header';
+import SearchBar from './components/SearchBar';
 import RegionSelector from './components/RegionSelector';
 import Filters from './components/Filters';
 import ComplexTable from './components/ComplexTable';
@@ -27,6 +28,11 @@ export default function App() {
   const [error, setError] = useState(null);
   const [regionSelected, setRegionSelected] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState({ sido: null, sigungu: null });
+  const [searchText, setSearchText] = useState('');         // 단지명 검색어
+
+  /* 최신 상태 참조 (콜백 내에서 stale closure 방지) */
+  const searchTextRef = useRef('');
+  const selectedRegionRef = useRef({ sido: null, sigungu: null });
 
   /* 통합 필터 상태 */
   const [filterState, setFilterState] = useState({
@@ -35,30 +41,31 @@ export default function App() {
     areaMin: 0, areaMax: Infinity, areaIndex: 0,
     bargainOnly: false, minDiscountValue: 0,
   });
+  const filterStateRef = useRef(filterState);
 
   /**
-   * 지역 변경 핸들러
-   * - 시/도, 시/군/구가 모두 선택되면 API 호출
+   * 공통 API 호출 헬퍼
+   * - 검색어, 지역, 급매 필터를 조합하여 서버 조회
    */
-  const handleRegionChange = useCallback(async (sido, sigungu) => {
-    setSelectedRegion({ sido, sigungu });
-    setError(null);
+  const fetchComplexes = useCallback(async ({ sido, sigungu, name, bargainOnly } = {}) => {
+    const hasRegion = sido && sigungu;
+    const hasName = name && name.length >= 2;
 
-    if (!sido || !sigungu) {
-      setRegionSelected(false);
+    /* 검색어도 없고 지역도 없으면 초기화 */
+    if (!hasRegion && !hasName) {
       setComplexes([]);
       setTotal(0);
       return;
     }
 
-    setRegionSelected(true);
     setLoading(true);
-
+    setError(null);
     try {
       const result = await getComplexes({
-        sido,
-        sigungu,
-        minDiscount: filterState.bargainOnly ? 0 : undefined,
+        sido: hasRegion ? sido : undefined,
+        sigungu: hasRegion ? sigungu : undefined,
+        name: hasName ? name : undefined,
+        minDiscount: bargainOnly ? 0 : undefined,
         sortBy: 'deal_discount_rate',
         order: 'desc',
         limit: 500,
@@ -72,7 +79,52 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [filterState.bargainOnly]);
+  }, []);
+
+  /**
+   * 단지명 검색 핸들러 (SearchBar → App)
+   * - 검색어 변경 시 서버 조회 (지역 선택과 조합 가능)
+   */
+  const handleSearch = useCallback((text) => {
+    setSearchText(text);
+    searchTextRef.current = text;
+    const region = selectedRegionRef.current;
+    fetchComplexes({
+      sido: region.sido,
+      sigungu: region.sigungu,
+      name: text,
+      bargainOnly: filterStateRef.current.bargainOnly,
+    });
+  }, [fetchComplexes]);
+
+  /**
+   * 지역 변경 핸들러
+   * - 시/도, 시/군/구가 모두 선택되면 API 호출
+   */
+  const handleRegionChange = useCallback(async (sido, sigungu) => {
+    setSelectedRegion({ sido, sigungu });
+    selectedRegionRef.current = { sido, sigungu };
+    setError(null);
+
+    if (!sido || !sigungu) {
+      setRegionSelected(false);
+      /* 검색어가 없으면 초기화, 있으면 검색어로만 조회 */
+      const curSearch = searchTextRef.current;
+      if (!curSearch || curSearch.length < 2) {
+        setComplexes([]);
+        setTotal(0);
+      }
+      return;
+    }
+
+    setRegionSelected(true);
+    fetchComplexes({
+      sido,
+      sigungu,
+      name: searchTextRef.current,
+      bargainOnly: filterStateRef.current.bargainOnly,
+    });
+  }, [fetchComplexes]);
 
   /**
    * 필터 변경 핸들러
@@ -80,31 +132,24 @@ export default function App() {
    * - 나머지 필터는 클라이언트 사이드 필터링
    */
   const handleFilterChange = useCallback(async (newFilters) => {
-    const bargainChanged = newFilters.bargainOnly !== filterState.bargainOnly;
+    const bargainChanged = newFilters.bargainOnly !== filterStateRef.current.bargainOnly;
     setFilterState(newFilters);
+    filterStateRef.current = newFilters;
+
+    const region = selectedRegionRef.current;
+    const hasRegion = region.sido && region.sigungu;
+    const hasName = searchTextRef.current && searchTextRef.current.length >= 2;
 
     /* bargainOnly 토글이 변경된 경우에만 서버 재조회 */
-    if (bargainChanged && selectedRegion.sido && selectedRegion.sigungu) {
-      setLoading(true);
-      setError(null);
-      try {
-        const result = await getComplexes({
-          sido: selectedRegion.sido,
-          sigungu: selectedRegion.sigungu,
-          minDiscount: newFilters.bargainOnly ? 0 : undefined,
-          sortBy: 'deal_discount_rate',
-          order: 'desc',
-          limit: 500,
-        });
-        setComplexes(result.items);
-        setTotal(result.total);
-      } catch (err) {
-        setError(err.message || '단지 정보를 불러오는 데 실패했습니다.');
-      } finally {
-        setLoading(false);
-      }
+    if (bargainChanged && (hasRegion || hasName)) {
+      fetchComplexes({
+        sido: region.sido,
+        sigungu: region.sigungu,
+        name: searchTextRef.current,
+        bargainOnly: newFilters.bargainOnly,
+      });
     }
-  }, [filterState.bargainOnly, selectedRegion]);
+  }, [fetchComplexes]);
 
   /**
    * 클라이언트 사이드 필터링
@@ -135,9 +180,12 @@ export default function App() {
     });
   }, [complexes, filterState]);
 
+  /* 결과가 있는지 여부 (검색어 또는 지역 선택으로 데이터 로드됨) */
+  const hasResults = regionSelected || (searchText && searchText.length >= 2);
+
   /** 상태에 따른 컨텐츠 렌더링 분기 */
   const renderContent = () => {
-    if (!regionSelected) return <EmptyState type="no-region" />;
+    if (!hasResults) return <EmptyState type="no-region" />;
     if (loading) return <LoadingSpinner />;
     if (error) return <EmptyState type="error" message={error} />;
     if (filteredComplexes.length === 0) return <EmptyState type="no-data" />;
@@ -154,16 +202,22 @@ export default function App() {
           {/* 단지 비교 뷰 */}
           {activeView === 'listings' && (
             <>
-              {/* 지역 선택기 */}
+              {/* 단지명 검색 + 지역 선택 */}
               <section className="app__section">
-                <RegionSelector onRegionChange={handleRegionChange} />
+                <SearchBar onSearch={handleSearch} />
+                <div className="app__region-row">
+                  <RegionSelector onRegionChange={handleRegionChange} />
+                </div>
               </section>
 
-              {/* 선택된 지역 + 결과 건수 */}
-              {regionSelected && (
+              {/* 선택된 지역/검색어 + 결과 건수 */}
+              {hasResults && (
                 <div className="app__toolbar">
                   <span className="app__region-label">
-                    {selectedRegion.sido} {selectedRegion.sigungu}
+                    {regionSelected
+                      ? `${selectedRegion.sido} ${selectedRegion.sigungu}`
+                      : '전국'}
+                    {searchText && <span className="app__search-label"> &middot; &ldquo;{searchText}&rdquo;</span>}
                     {!loading && (
                       <span className="app__count"> — {filteredComplexes.length}/{complexes.length}건</span>
                     )}
@@ -171,8 +225,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* 필터 패널: 지역 선택 후 표시 */}
-              {regionSelected && (
+              {/* 필터 패널: 결과가 있을 때 표시 */}
+              {hasResults && (
                 <Filters
                   filters={filterState}
                   onFilterChange={handleFilterChange}

@@ -116,6 +116,7 @@ export async function getComplexes(options = {}) {
   const params = new URLSearchParams();
   if (options.sido) params.set('sido', options.sido);
   if (options.sigungu) params.set('sigungu', options.sigungu);
+  if (options.name) params.set('name', options.name);
   if (options.minDiscount != null) params.set('min_discount', String(options.minDiscount));
   if (options.sortBy) params.set('sort_by', options.sortBy);
   if (options.order) params.set('order', options.order);
