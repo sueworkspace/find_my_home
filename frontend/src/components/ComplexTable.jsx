@@ -5,7 +5,8 @@
  * - 할인율: 절대값(억 단위) +/- 표시 (양수 = KB보다 낮게 거래 = 급매)
  * - 실거래일 표시 (YYYY.MM.DD)
  * - 모바일: 카드 형태 + 드롭다운 정렬, 데스크톱: 테이블 형태 + 헤더 클릭 정렬
- * - 정렬 가능 컬럼: KB시세, 실거래가, 할인율, 3개월 거래, 거래일
+ * - 정렬 가능 컬럼: 실거래가, KB시세, 할인율, 거래일
+ * - 기본 정렬: 거래일 최신순
  */
 import { useState, useMemo } from 'react';
 import './ComplexTable.css';
@@ -78,18 +79,18 @@ function formatDate(dateStr) {
 
 /** 모바일 정렬 옵션 목록 */
 const SORT_OPTIONS_MOBILE = [
+  { key: 'recentDealDate', direction: 'desc', label: '거래일 최신순' },
   { key: 'dealDiscountRate', direction: 'desc', label: '할인 큰순' },
   { key: 'dealDiscountRate', direction: 'asc', label: '할인 작은순' },
+  { key: 'recentDealPrice', direction: 'asc', label: '실거래가 낮은순' },
+  { key: 'recentDealPrice', direction: 'desc', label: '실거래가 높은순' },
   { key: 'kbPriceMid', direction: 'asc', label: 'KB시세 낮은순' },
   { key: 'kbPriceMid', direction: 'desc', label: 'KB시세 높은순' },
-  { key: 'recentDealPrice', direction: 'asc', label: '실거래가 낮은순' },
-  { key: 'recentDealDate', direction: 'desc', label: '거래일 최신순' },
-  { key: 'dealCount3m', direction: 'desc', label: '거래건수 많은순' },
 ];
 
 export default function ComplexTable({ complexes }) {
-  /* 정렬 상태: 기본 할인율 내림차순 */
-  const [sortConfig, setSortConfig] = useState({ key: 'dealDiscountRate', direction: 'desc' });
+  /* 정렬 상태: 기본 거래일 최신순 */
+  const [sortConfig, setSortConfig] = useState({ key: 'recentDealDate', direction: 'desc' });
 
   /**
    * 정렬된 단지 목록
@@ -177,20 +178,17 @@ export default function ComplexTable({ complexes }) {
               <th>아파트명</th>
               <th>지역</th>
               <th>면적</th>
-              <th className="complex-table__sortable" onClick={() => handleSort('kbPriceMid')}>
-                KB시세{getSortIndicator('kbPriceMid')}
-              </th>
               <th className="complex-table__sortable" onClick={() => handleSort('recentDealPrice')}>
                 실거래가{getSortIndicator('recentDealPrice')}
+              </th>
+              <th className="complex-table__sortable" onClick={() => handleSort('kbPriceMid')}>
+                KB시세{getSortIndicator('kbPriceMid')}
               </th>
               <th className="complex-table__sortable" onClick={() => handleSort('dealDiscountRate')}>
                 차이{getSortIndicator('dealDiscountRate')}
               </th>
               <th className="complex-table__sortable" onClick={() => handleSort('recentDealDate')}>
                 거래일{getSortIndicator('recentDealDate')}
-              </th>
-              <th className="complex-table__sortable" onClick={() => handleSort('dealCount3m')}>
-                3개월{getSortIndicator('dealCount3m')}
               </th>
             </tr>
           </thead>
@@ -212,18 +210,17 @@ export default function ComplexTable({ complexes }) {
                   <span className="complex-table__pyeong">({sqmToPyeong(item.areaSqm)}평)</span>
                 </td>
                 <td className="complex-table__price">
-                  <span className="complex-table__price--full">{formatPrice(item.kbPriceMid)}</span>
-                  <span className="complex-table__price--compact">{formatPrice(item.kbPriceMid, true)}</span>
-                </td>
-                <td className="complex-table__price">
                   <span className="complex-table__price--full">{formatPrice(item.recentDealPrice)}</span>
                   <span className="complex-table__price--compact">{formatPrice(item.recentDealPrice, true)}</span>
+                </td>
+                <td className="complex-table__price">
+                  <span className="complex-table__price--full">{formatPrice(item.kbPriceMid)}</span>
+                  <span className="complex-table__price--compact">{formatPrice(item.kbPriceMid, true)}</span>
                 </td>
                 <td>
                   <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
                 </td>
                 <td className="complex-table__date">{formatDate(item.recentDealDate)}</td>
-                <td className="complex-table__count">{item.dealCount3m}건</td>
               </tr>
             ))}
           </tbody>
@@ -247,20 +244,16 @@ export default function ComplexTable({ complexes }) {
             </div>
             <div className="complex-card__prices">
               <div className="complex-card__price-item">
-                <span className="complex-card__price-label">KB시세</span>
-                <span>{formatPrice(item.kbPriceMid, true)}</span>
-              </div>
-              <div className="complex-card__price-item">
                 <span className="complex-card__price-label">실거래가</span>
                 <span>{formatPrice(item.recentDealPrice, true)}</span>
               </div>
               <div className="complex-card__price-item">
-                <span className="complex-card__price-label">거래일</span>
-                <span>{formatDate(item.recentDealDate)}</span>
+                <span className="complex-card__price-label">KB시세</span>
+                <span>{formatPrice(item.kbPriceMid, true)}</span>
               </div>
               <div className="complex-card__price-item">
-                <span className="complex-card__price-label">3개월</span>
-                <span>{item.dealCount3m}건</span>
+                <span className="complex-card__price-label">거래일</span>
+                <span>{formatDate(item.recentDealDate)}</span>
               </div>
             </div>
           </article>

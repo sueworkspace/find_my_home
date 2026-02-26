@@ -30,8 +30,10 @@
   --color-discount-high: #DC2626;
   --color-discount-mid: #F59E0B;
   --color-discount-low: #22C55E;
-  --color-positive: #22C55E;
+  --color-positive: #16A34A;
+  --color-positive-bg: #DCFCE7;
   --color-negative: #DC2626;
+  --color-negative-bg: #FEE2E2;
 
   /* === 간격 (스페이싱) === */
   --space-xs: 4px;

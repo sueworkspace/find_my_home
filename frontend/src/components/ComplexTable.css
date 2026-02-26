@@ -104,12 +104,6 @@
   text-align: right;
 }
 
-/* ── 거래 건수 ── */
-.complex-table__count {
-  text-align: center;
-  color: var(--color-text-secondary, #4a5568);
-}
-
 /* ── 할인율 뱃지 ── */
 .complex-table__badge {
   display: inline-block;
@@ -121,13 +115,13 @@
 }
 
 .complex-table__badge--positive {
-  background: #e6f4ea;
-  color: #1e7e34;
+  background: var(--color-positive-bg, #DCFCE7);
+  color: var(--color-positive, #16A34A);
 }
 
 .complex-table__badge--negative {
-  background: #fdecea;
-  color: #c0392b;
+  background: var(--color-negative-bg, #FEE2E2);
+  color: var(--color-negative, #DC2626);
 }
 
 /* ── 가격 표기: 기본은 전체 형태, 모바일에서 축약 ── */
@@ -193,6 +187,8 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--color-gray-100, #f1f5f9);
 }
 
 .complex-card__price-item {
