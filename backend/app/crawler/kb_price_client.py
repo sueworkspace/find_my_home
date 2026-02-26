@@ -3070,10 +3070,10 @@ class KBPriceClient:
 # ──────────────────────────────────────────
 
 def _normalize_name(name: str) -> str:
-    """단지명 정규화 (구분 정보 보존 버전).
+    """단지명 정규화 (구분 정보 보존 + 브랜드 약어 통일 버전).
 
     N단지/N차 정보를 보존하고, 괄호 내용에서 단지 번호를 추출하여 유지한다.
-    "아파트" 접미사는 제거한다.
+    브랜드 약어를 통일하여 "엘지"↔"LG", "에스케이"↔"SK" 등의 불일치를 해소한다.
     """
     # 괄호 안 단지/차 번호 추출: "(1단지)" → suffix로 보존
     danji = re.search(r"\((\d+단지)\)", name)
@@ -3086,14 +3086,96 @@ def _normalize_name(name: str) -> str:
 
     # 괄호 및 괄호 내용 제거
     cleaned = re.sub(r"\([^)]*\)", "", name)
-    # "아파트" 접미사 제거 (구분 정보가 아님)
+    # 불필요 접미사 제거
     cleaned = re.sub(r"아파트$", "", cleaned)
     # 괄호에서 추출한 단지/차 번호 붙이기
     if suffix and suffix not in cleaned:
         cleaned = cleaned + suffix
+    # 공백, 특수문자 제거 전에 브랜드 약어 통일 (대소문자 무관)
+    cleaned = _unify_brand(cleaned)
     # 공백, 특수문자 제거 (숫자는 보존)
     cleaned = re.sub(r"[^\w가-힣0-9]", "", cleaned.lower())
     return cleaned.strip()
+
+
+def _unify_brand(name: str) -> str:
+    """브랜드 약어/영문을 한글 표기로 통일한다.
+
+    DB 단지명과 KB 단지명에서 동일 브랜드가 다르게 표기되는 문제를 해소.
+    예: "엘지" ↔ "LG", "에스케이" ↔ "SK", "e-편한세상" ↔ "이편한세상"
+
+    처리 순서가 중요:
+    1) 특수문자 치환 (& → 앤)
+    2) e편한세상 계열 통일
+    3) 영문 단어 → 한글 (VILLAGE 먼저, 그 다음 VIEW 등)
+    4) 브랜드 약어 → 한글 (LG, SK 등 — 영문 단어 처리 후)
+
+    Note: \\b(word boundary)는 한글이 Unicode word char로 인식되어
+    "LG원앙"에서 작동하지 않으므로, 대신 ASCII 알파벳 기준
+    lookbehind/lookahead를 사용한다.
+    """
+    result = name
+
+    # 1단계: 특수문자 치환
+    result = result.replace("&", "앤")
+
+    # 2단계: e편한세상 계열 통일 (영문 단어 치환 전)
+    result = re.sub(r"(?i)e-편한세상", "이편한세상", result)
+    result = re.sub(r"(?i)e편한세상", "이편한세상", result)
+
+    # 3단계: 영문 단어 → 한글 (긴/복합 패턴부터 처리)
+    word_map = [
+        # 복합 브랜드명 (먼저 처리해야 개별 단어 치환과 충돌 방지)
+        (r"(?i)I[\-\s]?PARK", "아이파크"),   # I-PARK, IPARK, I PARK
+        (r"(?i)I[\-\s]?Class", "아이클래스"), # I-Class, IClass
+        (r"(?i)TOP[\-\s]?Class", "탑클래스"), # TOP-Class, TOPClass
+        # 일반 영문 단어 (긴 것부터)
+        (r"(?i)VILLAGE", "빌리지"),
+        (r"(?i)PALACE", "팰리스"),
+        (r"(?i)CLASSIC", "클래식"),
+        (r"(?i)CLASS", "클래스"),
+        (r"(?i)HOUSE", "하우스"),
+        (r"(?i)TOWER", "타워"),
+        (r"(?i)TOWN", "타운"),
+        (r"(?i)VIEW", "뷰"),
+        (r"(?i)PARK", "파크"),
+        (r"(?i)CITY", "시티"),
+        (r"(?i)HILL[S]?", "힐"),
+        (r"(?i)VILLE", "빌"),
+        (r"(?i)SQUARE", "스퀘어"),
+        (r"(?i)CENTRAL", "센트럴"),
+        (r"(?i)GRAND", "그랜드"),
+        (r"(?i)PREMIER", "프리미어"),
+        (r"(?i)SCIENCE", "사이언스"),
+        (r"(?i)OCEAN", "오션"),
+        (r"(?i)GREEN", "그린"),
+        (r"(?i)GOLD", "골드"),
+        (r"(?i)NOBLE", "노블"),
+        (r"(?i)STELLA", "스텔라"),
+    ]
+    for pattern, replacement in word_map:
+        result = re.sub(pattern, replacement, result)
+
+    # 4단계: 브랜드 약어 → 한글
+    # (?<![a-zA-Z])..(?![a-zA-Z]) = ASCII 알파벳이 인접하지 않을 때만 매칭
+    # "LG원앙" ✓ (뒤에 한글), "VILLAGE" ✗ (이미 3단계에서 치환됨)
+    abbr_map = [
+        (r"(?<![a-zA-Z])KCC(?![a-zA-Z])", "케이씨씨"),
+        (r"(?<![a-zA-Z])KBS(?![a-zA-Z])", "케이비에스"),
+        (r"(?<![a-zA-Z])LG(?![a-zA-Z])", "엘지"),
+        (r"(?<![a-zA-Z])LH(?![a-zA-Z])", "엘에이치"),
+        (r"(?<![a-zA-Z])SK(?![a-zA-Z])", "에스케이"),
+        (r"(?<![a-zA-Z])GS(?![a-zA-Z])", "지에스"),
+        (r"(?<![a-zA-Z])CJ(?![a-zA-Z])", "씨제이"),
+        (r"(?<![a-zA-Z])BJ(?![a-zA-Z])", "비제이"),
+        (r"(?<![a-zA-Z])TS(?![a-zA-Z])", "티에스"),
+        (r"(?<![a-zA-Z])YH(?![a-zA-Z])", "와이에이치"),
+        (r"(?<![a-zA-Z])BL(?![a-zA-Z])", "블록"),
+    ]
+    for pattern, replacement in abbr_map:
+        result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
+
+    return result
 
 
 def _normalize_name_loose(name: str) -> str:
@@ -3101,7 +3183,10 @@ def _normalize_name_loose(name: str) -> str:
     cleaned = re.sub(r"\([^)]*\)", "", name)
     cleaned = re.sub(r"\d+단지", "", cleaned)
     cleaned = re.sub(r"\d+차", "", cleaned)
+    cleaned = re.sub(r"\d+블록", "", cleaned)
+    cleaned = re.sub(r"\d+BL", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"아파트", "", cleaned)
+    cleaned = _unify_brand(cleaned)
     cleaned = re.sub(r"[^\w가-힣]", "", cleaned.lower())
     return cleaned.strip()
 
@@ -3111,12 +3196,14 @@ def _calc_match_score(target: str, candidate: str) -> int:
 
     Scoring tiers:
       100: 정규화 완전 일치
+       97: 브랜드 통일 후 완전 일치 (엘지↔LG 등)
        95: loose 정규화 후 완전 일치 (N단지/N차 차이만)
+       92: 브랜드 통일 + loose 정규화 후 완전 일치
        90: 부분 포함 + 길이 비율 >= 0.7
        80: 부분 포함 + 길이 비율 >= 0.5
        70: 부분 포함 + 길이 비율 < 0.5
     60-85: 토큰 Jaccard 유사도
-    40-70: SequenceMatcher ratio >= 0.6
+    40-70: SequenceMatcher ratio >= 0.55
         0: 매칭 안됨
 
     Args:
@@ -3133,27 +3220,46 @@ def _calc_match_score(target: str, candidate: str) -> int:
     if target == candidate:
         return 100
 
+    # Level 1.5: 브랜드 통일 후 완전 일치
+    # _normalize_name에서 이미 _unify_brand를 호출하지만,
+    # 기존 캐시 데이터와의 호환성을 위해 여기서도 한번 더 처리
+    target_brand = re.sub(r"[^\w가-힣0-9]", "", _unify_brand(target).lower()).strip()
+    cand_brand = re.sub(r"[^\w가-힣0-9]", "", _unify_brand(candidate).lower()).strip()
+    if target_brand and cand_brand and target_brand == cand_brand:
+        return 97
+
     # Level 2: loose 정규화 후 완전 일치 (N단지/N차 차이만 있는 경우)
     target_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", target)).strip()
     cand_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", candidate)).strip()
     if target_loose and cand_loose and target_loose == cand_loose:
         return 95
 
+    # Level 2.5: 브랜드 통일 + loose (N단지/N차/N블록 제거)
+    target_brand_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "",
+        re.sub(r"\d+블록", "", target_brand))).strip()
+    cand_brand_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "",
+        re.sub(r"\d+블록", "", cand_brand))).strip()
+    if target_brand_loose and cand_brand_loose and target_brand_loose == cand_brand_loose:
+        return 92
+
     # Level 3: 부분 포함 (길이 비율에 따라 차등)
-    if target in candidate or candidate in target:
-        shorter = min(len(target), len(candidate))
-        longer = max(len(target), len(candidate))
-        ratio = shorter / longer if longer > 0 else 0
-        if ratio >= 0.7:
-            return 90
-        elif ratio >= 0.5:
-            return 80
-        else:
-            return 70
+    # 브랜드 통일된 버전으로도 부분 포함 체크
+    for t, c in [(target, candidate), (target_brand, cand_brand)]:
+        if t in c or c in t:
+            shorter = min(len(t), len(c))
+            longer = max(len(t), len(c))
+            ratio = shorter / longer if longer > 0 else 0
+            if ratio >= 0.7:
+                return 90
+            elif ratio >= 0.5:
+                return 80
+            else:
+                return 70
 
     # Level 4: 토큰 Jaccard 유사도 (한글 2+글자 + 숫자단지/차)
-    tokens_t = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", target))
-    tokens_c = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", candidate))
+    # 브랜드 통일된 버전으로 토큰 추출
+    tokens_t = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", target_brand))
+    tokens_c = set(re.findall(r"[가-힣]{2,}|\d+(?:단지|차)?", cand_brand))
     if tokens_t and tokens_c:
         intersection = tokens_t & tokens_c
         union = tokens_t | tokens_c
@@ -3163,11 +3269,12 @@ def _calc_match_score(target: str, candidate: str) -> int:
             token_score = int(60 + (jaccard - 0.3) / 0.7 * 25)
             return min(token_score, 85)
 
-    # Level 5: Fuzzy match (SequenceMatcher)
-    seq_ratio = difflib.SequenceMatcher(None, target, candidate).ratio()
-    if seq_ratio >= 0.6:
-        # 0.6~1.0 → 40~70
-        fuzzy_score = int(40 + (seq_ratio - 0.6) / 0.4 * 30)
+    # Level 5: Fuzzy match (SequenceMatcher) — threshold 0.6→0.55로 완화
+    # 브랜드 통일된 버전으로 비교
+    seq_ratio = difflib.SequenceMatcher(None, target_brand, cand_brand).ratio()
+    if seq_ratio >= 0.55:
+        # 0.55~1.0 → 40~70
+        fuzzy_score = int(40 + (seq_ratio - 0.55) / 0.45 * 30)
         return min(fuzzy_score, 70)
 
     return 0
