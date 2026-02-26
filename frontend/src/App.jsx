@@ -40,6 +40,7 @@ export default function App() {
     priceMin: 0, priceMax: Infinity, priceIndex: 0,
     areaMin: 0, areaMax: Infinity, areaIndex: 0,
     bargainOnly: false, minDiscountValue: 0,
+    dateMonths: 0, dateIndex: 0,
   });
   const filterStateRef = useRef(filterState);
 
@@ -156,6 +157,13 @@ export default function App() {
    * - 할인율, 가격(KB시세), 면적(평형) 필터 적용
    */
   const filteredComplexes = useMemo(() => {
+    /* 거래일 필터: dateMonths > 0이면 해당 개월 이내만 통과 */
+    let dateCutoff = null;
+    if (filterState.dateMonths > 0) {
+      dateCutoff = new Date();
+      dateCutoff.setMonth(dateCutoff.getMonth() - filterState.dateMonths);
+    }
+
     return complexes.filter(item => {
       const pyeong = item.areaSqm / 3.3058;
 
@@ -175,6 +183,13 @@ export default function App() {
       /* 면적 필터 (평형 기준) */
       if (pyeong < filterState.areaMin) return false;
       if (filterState.areaMax !== Infinity && pyeong > filterState.areaMax) return false;
+
+      /* 거래일 필터 */
+      if (dateCutoff) {
+        if (!item.recentDealDate) return false;
+        const dealDate = new Date(item.recentDealDate);
+        if (dealDate < dateCutoff) return false;
+      }
 
       return true;
     });

@@ -17,6 +17,7 @@ class ComplexListItem(BaseModel):
     area_sqm: float = Field(..., description="전용면적 (m2)")
     kb_price_mid: int = Field(..., description="KB시세 중간값 (만원)")
     recent_deal_price: int = Field(..., description="최근 실거래가 (만원)")
+    recent_deal_date: Optional[datetime] = Field(None, description="최근 실거래일")
     deal_discount_rate: float = Field(..., description="할인율 (양수=급매)")
     deal_count_3m: int = Field(0, description="최근 3개월 거래 건수")
     compared_at: Optional[datetime] = Field(None, description="비교 갱신 시각")

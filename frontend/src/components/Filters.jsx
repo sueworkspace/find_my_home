@@ -46,6 +46,15 @@ const AREA_OPTIONS = [
   { label: '45평 이상', min: 45, max: Infinity },
 ];
 
+/** 거래일 기간 필터 옵션 (개월 수, 0=전체) */
+const DATE_OPTIONS = [
+  { label: '전체', months: 0 },
+  { label: '최근 1개월', months: 1 },
+  { label: '최근 3개월', months: 3 },
+  { label: '최근 6개월', months: 6 },
+  { label: '최근 1년', months: 12 },
+];
+
 export default function Filters({ filters, onFilterChange, totalCount, filteredCount }) {
   /**
    * 필터 패널 열림/닫힘 상태
@@ -111,6 +120,17 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
     });
   };
 
+  /** 거래일 필터 변경 - 인덱스로 옵션 참조 */
+  const handleDateChange = (e) => {
+    const idx = Number(e.target.value);
+    const option = DATE_OPTIONS[idx];
+    onFilterChange({
+      ...filters,
+      dateMonths: option.months,
+      dateIndex: idx,
+    });
+  };
+
   /** 모든 필터를 초기값으로 리셋 */
   const handleReset = () => {
     onFilterChange({
@@ -123,13 +143,15 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
       areaIndex: 0,
       bargainOnly: false,
       minDiscountValue: 0,
+      dateMonths: 0,
+      dateIndex: 0,
     });
   };
 
   /** 현재 활성화된 필터가 있는지 확인 */
   const hasActiveFilter =
     filters.minDiscount > 0 || filters.priceIndex > 0 || filters.areaIndex > 0 ||
-    filters.bargainOnly || filters.minDiscountValue > 0;
+    filters.bargainOnly || filters.minDiscountValue > 0 || (filters.dateIndex || 0) > 0;
 
   return (
     <div className="filters">
@@ -269,6 +291,22 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
                 onChange={handleAreaChange}
               >
                 {AREA_OPTIONS.map((opt, idx) => (
+                  <option key={idx} value={idx}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 거래일 필터 */}
+            <div className="filters__group">
+              <label className="filters__label">거래일</label>
+              <select
+                className="filters__select"
+                value={filters.dateIndex || 0}
+                onChange={handleDateChange}
+              >
+                {DATE_OPTIONS.map((opt, idx) => (
                   <option key={idx} value={idx}>
                     {opt.label}
                   </option>

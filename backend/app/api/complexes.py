@@ -88,6 +88,7 @@ def list_complexes(
             area_sqm=comp.area_sqm,
             kb_price_mid=comp.kb_price_mid,
             recent_deal_price=comp.recent_deal_price,
+            recent_deal_date=comp.recent_deal_date,
             deal_discount_rate=comp.deal_discount_rate,
             deal_count_3m=comp.deal_count_3m,
             compared_at=comp.compared_at,

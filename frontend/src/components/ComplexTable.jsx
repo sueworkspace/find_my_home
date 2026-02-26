@@ -2,9 +2,10 @@
  * ComplexTable 컴포넌트
  *
  * KB시세 vs 실거래가 비교 단지 목록을 테이블/카드로 렌더링합니다.
- * - 할인율 기준 색상 강조 (양수 = 급매 = 초록, 음수 = 빨강)
+ * - 할인율: 절대값(억 단위) +/- 표시 (양수 = KB보다 낮게 거래 = 급매)
+ * - 실거래일 표시 (YYYY.MM.DD)
  * - 모바일: 카드 형태 + 드롭다운 정렬, 데스크톱: 테이블 형태 + 헤더 클릭 정렬
- * - 정렬 가능 컬럼: KB시세, 실거래가, 할인율, 3개월 거래
+ * - 정렬 가능 컬럼: KB시세, 실거래가, 할인율, 3개월 거래, 거래일
  */
 import { useState, useMemo } from 'react';
 import './ComplexTable.css';
@@ -30,29 +31,59 @@ function sqmToPyeong(sqm) {
   return Math.round(sqm / 3.3058);
 }
 
-/** 할인율 표시 + 색상 클래스 + 자연어 툴팁 */
-function DiscountBadge({ rate }) {
-  if (rate == null) return <span>-</span>;
-  const isPositive = rate > 0;
+/**
+ * 할인 금액 절대값 표시 (억 단위, +/- 부호)
+ * KB시세 - 실거래가 = 양수면 급매(초록), 음수면 프리미엄(빨강)
+ */
+function DiffBadge({ kbPrice, dealPrice }) {
+  if (kbPrice == null || dealPrice == null) return <span>-</span>;
+  const diff = kbPrice - dealPrice; // 만원 단위, 양수=급매
+  const isPositive = diff > 0;
   const cls = isPositive ? 'complex-table__badge--positive' : 'complex-table__badge--negative';
   const sign = isPositive ? '+' : '';
+
+  /* 억 단위 표기 */
+  const absDiff = Math.abs(diff);
+  let label;
+  if (absDiff >= 10000) {
+    const eok = absDiff / 10000;
+    label = `${sign}${isPositive ? '' : '-'}${eok % 1 === 0 ? eok : eok.toFixed(1)}억`;
+  } else if (absDiff > 0) {
+    label = `${sign}${isPositive ? '' : '-'}${absDiff.toLocaleString()}만`;
+  } else {
+    return <span className="complex-table__badge">0</span>;
+  }
+
   const tooltip = isPositive
-    ? `KB시세보다 ${rate.toFixed(1)}% 낮게 거래됨`
-    : `KB시세보다 ${Math.abs(rate).toFixed(1)}% 높게 거래됨`;
+    ? `KB시세보다 ${formatPrice(absDiff)} 낮게 거래`
+    : `KB시세보다 ${formatPrice(absDiff)} 높게 거래`;
+
   return (
     <span className={`complex-table__badge ${cls}`} title={tooltip}>
-      {sign}{rate.toFixed(1)}%
+      {label}
     </span>
   );
 }
 
+/** 날짜 포맷 (YYYY.MM.DD) */
+function formatDate(dateStr) {
+  if (!dateStr) return '-';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '-';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}.${m}.${day}`;
+}
+
 /** 모바일 정렬 옵션 목록 */
 const SORT_OPTIONS_MOBILE = [
-  { key: 'dealDiscountRate', direction: 'desc', label: '할인율 높은순' },
-  { key: 'dealDiscountRate', direction: 'asc', label: '할인율 낮은순' },
+  { key: 'dealDiscountRate', direction: 'desc', label: '할인 큰순' },
+  { key: 'dealDiscountRate', direction: 'asc', label: '할인 작은순' },
   { key: 'kbPriceMid', direction: 'asc', label: 'KB시세 낮은순' },
   { key: 'kbPriceMid', direction: 'desc', label: 'KB시세 높은순' },
   { key: 'recentDealPrice', direction: 'asc', label: '실거래가 낮은순' },
+  { key: 'recentDealDate', direction: 'desc', label: '거래일 최신순' },
   { key: 'dealCount3m', direction: 'desc', label: '거래건수 많은순' },
 ];
 
@@ -63,6 +94,7 @@ export default function ComplexTable({ complexes }) {
   /**
    * 정렬된 단지 목록
    * - null 값은 항상 맨 뒤로 배치
+   * - 날짜 정렬은 문자열 비교로 처리
    */
   const sortedComplexes = useMemo(() => {
     if (!complexes || complexes.length === 0) return [];
@@ -76,7 +108,13 @@ export default function ComplexTable({ complexes }) {
       if (va == null) return 1;
       if (vb == null) return -1;
 
-      const cmp = va - vb;
+      /* 날짜 문자열은 문자열 비교 */
+      let cmp;
+      if (sortConfig.key === 'recentDealDate') {
+        cmp = String(va).localeCompare(String(vb));
+      } else {
+        cmp = va - vb;
+      }
       return sortConfig.direction === 'asc' ? cmp : -cmp;
     });
   }, [complexes, sortConfig]);
@@ -146,10 +184,13 @@ export default function ComplexTable({ complexes }) {
                 실거래가{getSortIndicator('recentDealPrice')}
               </th>
               <th className="complex-table__sortable" onClick={() => handleSort('dealDiscountRate')}>
-                할인율{getSortIndicator('dealDiscountRate')}
+                차이{getSortIndicator('dealDiscountRate')}
+              </th>
+              <th className="complex-table__sortable" onClick={() => handleSort('recentDealDate')}>
+                거래일{getSortIndicator('recentDealDate')}
               </th>
               <th className="complex-table__sortable" onClick={() => handleSort('dealCount3m')}>
-                3개월 거래{getSortIndicator('dealCount3m')}
+                3개월{getSortIndicator('dealCount3m')}
               </th>
             </tr>
           </thead>
@@ -179,8 +220,9 @@ export default function ComplexTable({ complexes }) {
                   <span className="complex-table__price--compact">{formatPrice(item.recentDealPrice, true)}</span>
                 </td>
                 <td>
-                  <DiscountBadge rate={item.dealDiscountRate} />
+                  <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
                 </td>
+                <td className="complex-table__date">{formatDate(item.recentDealDate)}</td>
                 <td className="complex-table__count">{item.dealCount3m}건</td>
               </tr>
             ))}
@@ -194,7 +236,7 @@ export default function ComplexTable({ complexes }) {
           <article key={`card-${item.complexId}-${item.areaSqm}-${idx}`} className="complex-card">
             <div className="complex-card__header">
               <span className="complex-card__name">{item.name}</span>
-              <DiscountBadge rate={item.dealDiscountRate} />
+              <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
             </div>
             <div className="complex-card__sub">
               <span>{item.sigungu}{item.dong ? ` ${item.dong}` : ''}</span>
@@ -213,7 +255,11 @@ export default function ComplexTable({ complexes }) {
                 <span>{formatPrice(item.recentDealPrice, true)}</span>
               </div>
               <div className="complex-card__price-item">
-                <span className="complex-card__price-label">3개월 거래</span>
+                <span className="complex-card__price-label">거래일</span>
+                <span>{formatDate(item.recentDealDate)}</span>
+              </div>
+              <div className="complex-card__price-item">
+                <span className="complex-card__price-label">3개월</span>
                 <span>{item.dealCount3m}건</span>
               </div>
             </div>

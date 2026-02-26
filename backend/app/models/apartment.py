@@ -63,6 +63,7 @@ class ComplexComparison(Base):
     area_sqm = Column(Float, nullable=False)
     kb_price_mid = Column(BigInteger)          # KB시세 중간값
     recent_deal_price = Column(BigInteger)      # 최근 실거래가
+    recent_deal_date = Column(DateTime)         # 최근 실거래일
     deal_discount_rate = Column(Float)          # 할인율: (KB - 실거래가) / KB * 100 (양수=KB보다 낮게 거래)
     deal_count_3m = Column(Integer, default=0)  # 최근 3개월 거래 건수
     compared_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

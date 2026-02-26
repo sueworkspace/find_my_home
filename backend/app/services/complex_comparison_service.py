@@ -123,6 +123,7 @@ def update_all_comparisons(db: Session) -> Dict[str, Any]:
             continue
 
         deal_price = recent["deal_price"]
+        deal_date = recent["deal_date"]
         deal_count = recent["deal_count"]
 
         # 할인율 계산 (양수 = 급매)
@@ -141,6 +142,7 @@ def update_all_comparisons(db: Session) -> Dict[str, Any]:
         if existing:
             existing.kb_price_mid = kb_mid
             existing.recent_deal_price = deal_price
+            existing.recent_deal_date = deal_date
             existing.deal_discount_rate = round(discount_rate, 2)
             existing.deal_count_3m = deal_count
         else:
@@ -149,6 +151,7 @@ def update_all_comparisons(db: Session) -> Dict[str, Any]:
                 area_sqm=area_sqm,
                 kb_price_mid=kb_mid,
                 recent_deal_price=deal_price,
+                recent_deal_date=deal_date,
                 deal_discount_rate=round(discount_rate, 2),
                 deal_count_3m=deal_count,
             )
