@@ -33,31 +33,33 @@ function sqmToPyeong(sqm) {
 }
 
 /**
- * 할인 금액 절대값 표시 (억 단위, +/- 부호)
- * KB시세 - 실거래가 = 양수면 급매(초록), 음수면 프리미엄(빨강)
+ * 시세 차이 뱃지 (억 단위, +/- 부호)
+ * 실거래가 - KB시세 기준:
+ *   음수(급매, 실거래가 < KB시세) → 빨강 뱃지
+ *   양수(프리미엄, 실거래가 > KB시세) → 초록 뱃지
  */
 function DiffBadge({ kbPrice, dealPrice }) {
   if (kbPrice == null || dealPrice == null) return <span>-</span>;
-  const diff = kbPrice - dealPrice; // 만원 단위, 양수=급매
+  const diff = dealPrice - kbPrice; // 만원 단위, 음수=급매, 양수=프리미엄
   const isPositive = diff > 0;
   const cls = isPositive ? 'complex-table__badge--positive' : 'complex-table__badge--negative';
-  const sign = isPositive ? '+' : '';
 
   /* 억 단위 표기 */
   const absDiff = Math.abs(diff);
   let label;
   if (absDiff >= 10000) {
     const eok = absDiff / 10000;
-    label = `${sign}${isPositive ? '' : '-'}${eok % 1 === 0 ? eok : eok.toFixed(1)}억`;
+    const numStr = eok % 1 === 0 ? String(eok) : eok.toFixed(1);
+    label = isPositive ? `+${numStr}억` : `-${numStr}억`;
   } else if (absDiff > 0) {
-    label = `${sign}${isPositive ? '' : '-'}${absDiff.toLocaleString()}만`;
+    label = isPositive ? `+${absDiff.toLocaleString()}만` : `-${absDiff.toLocaleString()}만`;
   } else {
     return <span className="complex-table__badge">0</span>;
   }
 
   const tooltip = isPositive
-    ? `KB시세보다 ${formatPrice(absDiff)} 낮게 거래`
-    : `KB시세보다 ${formatPrice(absDiff)} 높게 거래`;
+    ? `KB시세보다 ${formatPrice(absDiff)} 높게 거래 (프리미엄)`
+    : `KB시세보다 ${formatPrice(absDiff)} 낮게 거래 (급매)`;
 
   return (
     <span className={`complex-table__badge ${cls}`} title={tooltip}>
