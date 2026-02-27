@@ -118,14 +118,14 @@ export default function EmptyState({ type, message }) {
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
         >
-          <circle cx="32" cy="32" r="28" stroke="#FCA5A5" strokeWidth="2" fill="#FEF2F2" />
+          <circle cx="32" cy="32" r="28" stroke="#F04251" strokeWidth="2" fill="#FFF3F4" />
           <path
             d="M32 20V36"
-            stroke="#DC2626"
+            stroke="#F04251"
             strokeWidth="3"
             strokeLinecap="round"
           />
-          <circle cx="32" cy="44" r="2" fill="#DC2626" />
+          <circle cx="32" cy="44" r="2" fill="#F04251" />
         </svg>
         <div>
           <h3 className="text-[15px] font-bold text-[#191F28] mb-1">오류가 발생했습니다</h3>

@@ -208,7 +208,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F9FAFB]">
+    <div className="flex flex-col min-h-screen bg-[var(--color-surface)]">
       {/* 헤더: 앱 타이틀 + 탭 네비게이션 */}
       <Header activeView={activeView} onViewChange={setActiveView} />
 
@@ -236,7 +236,7 @@ export default function App() {
                         ? `${selectedRegion.sido} ${selectedRegion.sigungu}`
                         : '전국'}
                       {searchText && (
-                        <span className="font-normal text-[#1B64DA]"> &middot; &ldquo;{searchText}&rdquo;</span>
+                        <span className="font-normal text-[var(--color-brand)]"> &middot; &ldquo;{searchText}&rdquo;</span>
                       )}
                       {!loading && (
                         <span className="font-normal text-[#8B95A1] text-[14px]"> — {filteredComplexes.length}/{complexes.length}건</span>

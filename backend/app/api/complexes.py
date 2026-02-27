@@ -85,6 +85,7 @@ def list_complexes(
             sigungu=cpx.sigungu,
             dong=cpx.dong,
             built_year=cpx.built_year,
+            total_units=cpx.total_units,
             area_sqm=comp.area_sqm,
             kb_price_mid=comp.kb_price_mid,
             recent_deal_price=comp.recent_deal_price,

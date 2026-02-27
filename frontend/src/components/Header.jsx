@@ -27,7 +27,7 @@ export default function Header({ activeView = 'listings', onViewChange }) {
               aria-hidden="true"
             >
               {/* 건물 실루엣 — Toss blue 계열 */}
-              <path d="M16 2L2 9L16 16L30 9L16 2Z" fill="#1B64DA" />
+              <path d="M16 2L2 9L16 16L30 9L16 2Z" fill="var(--color-brand)" />
               <path d="M2 9V23L16 30V16L2 9Z" fill="#4A90D9" />
               <path d="M30 9V23L16 30V16L30 9Z" fill="#2B74EA" />
               {/* 창문 — 흰색 */}
@@ -54,7 +54,7 @@ export default function Header({ activeView = 'listings', onViewChange }) {
                   className={cn(
                     'relative h-full px-3 text-[14px] font-medium transition-colors focus-visible:outline-none',
                     activeView === key
-                      ? 'text-[#1B64DA] font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-[#1B64DA] after:rounded-t-sm'
+                      ? 'text-[var(--color-brand)] font-bold after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-[var(--color-brand)] after:rounded-t-sm'
                       : 'text-[#8B95A1] hover:text-[#4E5968]'
                   )}
                   aria-current={activeView === key ? 'page' : undefined}

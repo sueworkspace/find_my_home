@@ -3028,6 +3028,7 @@ class KBPriceClient:
                 best_score = score
                 best_match = cx
 
+        # threshold 55: Level 5(fuzzy) 40~54점은 false positive 방지 위해 의도적으로 제외
         if best_match and best_score >= 55:
             logger.info(
                 "KB 매칭(캐시): '%s' -> '%s' (ID=%s, score=%d)",
@@ -3152,6 +3153,14 @@ def _unify_brand(name: str) -> str:
         (r"(?i)GOLD", "골드"),
         (r"(?i)NOBLE", "노블"),
         (r"(?i)STELLA", "스텔라"),
+        (r"(?i)FOREST",    "포레스트"),
+        (r"(?i)VALLEY",    "밸리"),
+        (r"(?i)TERRACE",   "테라스"),
+        (r"(?i)PLUS",      "플러스"),
+        (r"(?i)PRIME",     "프라임"),
+        (r"(?i)PRESTIGE",  "프레스티지"),
+        (r"(?i)\bTHE\b",   "더"),
+        (r"(?i)GRANDE?",   "그랑"),
     ]
     for pattern, replacement in word_map:
         result = re.sub(pattern, replacement, result)
@@ -3171,6 +3180,8 @@ def _unify_brand(name: str) -> str:
         (r"(?<![a-zA-Z])TS(?![a-zA-Z])", "티에스"),
         (r"(?<![a-zA-Z])YH(?![a-zA-Z])", "와이에이치"),
         (r"(?<![a-zA-Z])BL(?![a-zA-Z])", "블록"),
+        (r"(?<![a-zA-Z])HDC(?![a-zA-Z])", "에이치디씨"),
+        (r"(?<![a-zA-Z])DL(?![a-zA-Z])",  "디엘"),
     ]
     for pattern, replacement in abbr_map:
         result = re.sub(pattern, replacement, result, flags=re.IGNORECASE)
@@ -3228,9 +3239,9 @@ def _calc_match_score(target: str, candidate: str) -> int:
     if target_brand and cand_brand and target_brand == cand_brand:
         return 97
 
-    # Level 2: loose 정규화 후 완전 일치 (N단지/N차 차이만 있는 경우)
-    target_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", target)).strip()
-    cand_loose = re.sub(r"\d+단지", "", re.sub(r"\d+차", "", candidate)).strip()
+    # Level 2: loose 정규화 후 완전 일치 (N단지/N차/N블록/NBL 차이만 있는 경우)
+    target_loose = _normalize_name_loose(target)
+    cand_loose = _normalize_name_loose(candidate)
     if target_loose and cand_loose and target_loose == cand_loose:
         return 95
 

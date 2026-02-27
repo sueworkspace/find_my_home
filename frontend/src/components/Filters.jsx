@@ -136,8 +136,8 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
           className={cn(
             'flex items-center gap-1.5 shrink-0 h-9 px-4 rounded-full text-[13px] font-medium transition-all',
             filters.bargainOnly
-              ? 'bg-[#1B64DA] text-white'
-              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[#1B64DA] hover:text-[#1B64DA]'
+              ? 'bg-[var(--color-brand)] text-white'
+              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
           )}
         >
           {/* 급매 뱃지 아이콘 */}
@@ -157,8 +157,8 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
           className={cn(
             'flex items-center gap-1 shrink-0 h-9 px-4 rounded-full text-[13px] font-medium transition-all',
             isDiscountActive
-              ? 'bg-[#1B64DA] text-white'
-              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[#1B64DA] hover:text-[#1B64DA]'
+              ? 'bg-[var(--color-brand)] text-white'
+              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
           )}
         >
           {discountLabel}
@@ -174,8 +174,8 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
           className={cn(
             'flex items-center gap-1 shrink-0 h-9 px-4 rounded-full text-[13px] font-medium transition-all',
             isPriceActive
-              ? 'bg-[#1B64DA] text-white'
-              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[#1B64DA] hover:text-[#1B64DA]'
+              ? 'bg-[var(--color-brand)] text-white'
+              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
           )}
         >
           {priceLabel}
@@ -191,8 +191,8 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
           className={cn(
             'flex items-center gap-1 shrink-0 h-9 px-4 rounded-full text-[13px] font-medium transition-all',
             isAreaActive
-              ? 'bg-[#1B64DA] text-white'
-              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[#1B64DA] hover:text-[#1B64DA]'
+              ? 'bg-[var(--color-brand)] text-white'
+              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
           )}
         >
           {areaLabel}
@@ -208,8 +208,8 @@ export default function Filters({ filters, onFilterChange, totalCount, filteredC
           className={cn(
             'flex items-center gap-1 shrink-0 h-9 px-4 rounded-full text-[13px] font-medium transition-all',
             isDateActive
-              ? 'bg-[#1B64DA] text-white'
-              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[#1B64DA] hover:text-[#1B64DA]'
+              ? 'bg-[var(--color-brand)] text-white'
+              : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:border-[var(--color-brand)] hover:text-[var(--color-brand)]'
           )}
         >
           {dateLabel}

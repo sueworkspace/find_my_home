@@ -190,7 +190,7 @@ export default function ComplexTable({ complexes }) {
       <div className="flex items-center gap-2 mb-2 md:hidden">
         <span className="text-[13px] font-semibold text-[#8B95A1]">정렬</span>
         <select
-          className="flex-1 bg-white rounded-xl border-0 shadow-sm text-[14px] text-[#191F28] px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3182F6]/30"
+          className="flex-1 bg-white rounded-xl border-0 shadow-sm text-[14px] text-[#191F28] px-3 py-2 pr-8 appearance-none cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]/20 bg-[url('data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20viewBox=%270%200%2012%2012%27%3E%3Cpath%20fill=%27%238B95A1%27%20d=%27M2.5%204.5L6%208l3.5-3.5%27/%3E%3C/svg%3E')] bg-no-repeat bg-[right_12px_center] bg-[length:12px]"
           value={currentMobileSortIndex >= 0 ? currentMobileSortIndex : 0}
           onChange={handleMobileSortChange}
           aria-label="정렬 기준 선택"
@@ -270,9 +270,11 @@ export default function ComplexTable({ complexes }) {
                 {/* 아파트명 */}
                 <td className="px-4 py-3 align-middle">
                   <span className="font-medium text-[#191F28]">{item.name}</span>
-                  {item.builtYear && (
-                    <span className="block text-[12px] text-[#8B95A1] mt-0.5">{item.builtYear}년</span>
-                  )}
+                  <span className="block text-[12px] text-[#8B95A1] mt-0.5">
+                    {item.builtYear ? `${item.builtYear}년` : ''}
+                    {item.builtYear && item.totalUnits ? ' · ' : ''}
+                    {item.totalUnits ? `${item.totalUnits.toLocaleString()}세대` : ''}
+                  </span>
                 </td>
                 {/* 지역 */}
                 <td className="px-4 py-3 align-middle text-[#191F28]">
@@ -323,7 +325,7 @@ export default function ComplexTable({ complexes }) {
               <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
             </div>
 
-            {/* 서브 정보: 지역 · 면적 · 연도 */}
+            {/* 서브 정보: 지역 · 면적 · 연도 · 세대수 */}
             <div className="flex items-center flex-wrap gap-1.5 mb-3 text-[13px] text-[#8B95A1]">
               <span>{item.sigungu}{item.dong ? ` ${item.dong}` : ''}</span>
               <span className="inline-block w-1 h-1 rounded-full bg-[#D1D5DB]" aria-hidden="true" />
@@ -332,6 +334,12 @@ export default function ComplexTable({ complexes }) {
                 <>
                   <span className="inline-block w-1 h-1 rounded-full bg-[#D1D5DB]" aria-hidden="true" />
                   <span>{item.builtYear}년</span>
+                </>
+              )}
+              {item.totalUnits && (
+                <>
+                  <span className="inline-block w-1 h-1 rounded-full bg-[#D1D5DB]" aria-hidden="true" />
+                  <span>{item.totalUnits.toLocaleString()}세대</span>
                 </>
               )}
             </div>
@@ -352,7 +360,7 @@ export default function ComplexTable({ complexes }) {
               </div>
               <div className="flex flex-col items-center gap-1">
                 <span className="text-[13px] text-[#8B95A1]">거래일</span>
-                <span className="font-bold text-[15px] text-[#191F28]">
+                <span className="font-medium text-[14px] text-[#8B95A1]">
                   {formatDate(item.recentDealDate)}
                 </span>
               </div>

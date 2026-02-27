@@ -53,7 +53,7 @@ export default function RegionSelector({ onRegionChange }) {
     'bg-[url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2712%27%20height=%2712%27%20viewBox=%270%200%2012%2012%27%3E%3Cpath%20fill=%27%238B95A1%27%20d=%27M2.5%204.5L6%208l3.5-3.5%27/%3E%3C/svg%3E")] ' +
     'bg-no-repeat bg-[right_12px_center] bg-[length:12px] ' +
     'transition-colors duration-200 cursor-pointer ' +
-    'hover:border-[#3182F6] focus:outline-none focus:border-[#3182F6] focus:ring-2 focus:ring-[#3182F6]/15 ' +
+    'hover:border-[var(--color-brand)] focus-visible:outline-none focus-visible:border-[var(--color-brand)] focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]/20 ' +
     'disabled:bg-[#F2F4F6] disabled:text-[#D1D6DB] disabled:cursor-not-allowed';
 
   return (

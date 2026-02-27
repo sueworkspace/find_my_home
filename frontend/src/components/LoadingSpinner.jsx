@@ -17,7 +17,7 @@ export default function LoadingSpinner() {
     >
       {/* SVG 링 스피너 — animate-spin */}
       <svg
-        className="animate-spin text-[#1B64DA]"
+        className="animate-spin text-[var(--color-brand)]"
         width="36"
         height="36"
         viewBox="0 0 36 36"

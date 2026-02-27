@@ -14,6 +14,7 @@ class ComplexListItem(BaseModel):
     sigungu: str = Field(..., description="시/군/구")
     dong: Optional[str] = Field(None, description="법정동")
     built_year: Optional[int] = Field(None, description="건축년도")
+    total_units: Optional[int] = Field(None, description="총세대수")
     area_sqm: float = Field(..., description="전용면적 (m2)")
     kb_price_mid: int = Field(..., description="KB시세 중간값 (만원)")
     recent_deal_price: int = Field(..., description="최근 실거래가 (만원)")

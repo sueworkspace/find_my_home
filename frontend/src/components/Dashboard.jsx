@@ -53,10 +53,10 @@ function DashboardStatCards({ summary }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 lg:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3 lg:grid-cols-5">
       {cards.map((card) => (
         <div className="bg-[#F9FAFB] rounded-xl p-3 md:p-4 text-center" key={card.label}>
-          <div className={`text-2xl md:text-[1.75rem] font-extrabold leading-tight ${card.accent ? 'text-[#F04251]' : 'text-[#1B64DA]'}`}>
+          <div className={`text-2xl md:text-[1.75rem] font-extrabold leading-tight ${card.accent ? 'text-[#F04251]' : 'text-[var(--color-brand)]'}`}>
             {formatNumber(card.value)}
           </div>
           <div className="text-[11px] md:text-xs text-[#8B95A1] mt-0.5">{card.label}</div>
@@ -233,7 +233,7 @@ function BargainAlertPanel() {
           </label>
           <input
             type="range"
-            className="w-full accent-[#1B64DA]"
+            className="w-full accent-[var(--color-brand)]"
             min="1"
             max="20"
             step="1"
@@ -249,7 +249,7 @@ function BargainAlertPanel() {
               key={h}
               className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                 sinceHours === h
-                  ? 'bg-[#1B64DA] text-white border border-[#1B64DA]'
+                  ? 'bg-[var(--color-brand)] text-white border border-[var(--color-brand)]'
                   : 'bg-white text-[#4E5968] border border-[#E5E8EB] hover:bg-[#F2F4F6]'
               }`}
               onClick={() => setSinceHours(h)}
@@ -271,7 +271,7 @@ function BargainAlertPanel() {
                 <div className="px-3 py-2.5 bg-white rounded-lg border border-[#E5E8EB]" key={`${item.complexId}-${item.areaSqm}-${idx}`}>
                   <div className="flex justify-between items-center mb-1">
                     <span className="font-medium text-sm text-[#191F28]">{item.complexName}</span>
-                    <span className={`font-semibold text-[13px] px-1.5 py-0.5 rounded ${
+                    <span className={`font-semibold text-[13px] px-1.5 py-0.5 rounded-md ${
                       item.discountRate > 0
                         ? 'bg-[#FFF3F4] text-[#F04251]'
                         : 'bg-[#F2F4F6] text-[#8B95A1]'
@@ -376,7 +376,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-[#D1D6DB]">{countdown}초 후 새로고침</span>
             <button
-              className="inline-flex items-center gap-1 bg-[#1B64DA] text-white border-none rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors hover:bg-[#1554B8] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1 bg-[var(--color-brand)] text-white border-none rounded-lg px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors hover:bg-[#1554B8] disabled:opacity-60 disabled:cursor-not-allowed"
               onClick={fetchAll}
               disabled={loading}
             >
