@@ -25,8 +25,8 @@ from app.models.apartment import (
 
 logger = logging.getLogger(__name__)
 
-# 최근 거래로 인정하는 기간 (일)
-RECENT_DEAL_DAYS = 90
+# 3개월 거래 건수 계산용 기간 (일)
+RECENT_COUNT_DAYS = 90
 
 
 def _get_recent_deal(
@@ -37,6 +37,8 @@ def _get_recent_deal(
 ) -> Optional[Dict[str, Any]]:
     """특정 단지/면적의 최근 실거래가를 조회한다.
 
+    기간 제한 없이 가장 최근 거래를 반환한다. (거래일은 UI에 표시됨)
+
     Args:
         db: SQLAlchemy 세션
         complex_id: 단지 ID
@@ -46,9 +48,7 @@ def _get_recent_deal(
     Returns:
         {'deal_price': int, 'deal_date': datetime, 'deal_count': int} 또는 None
     """
-    cutoff = datetime.now() - timedelta(days=RECENT_DEAL_DAYS)
-
-    # 면적 허용 오차 내 최근 거래 조회
+    # 면적 허용 오차 내 가장 최근 거래 조회 (기간 제한 없음)
     recent = (
         db.query(RealTransaction)
         .filter(
@@ -56,7 +56,6 @@ def _get_recent_deal(
             RealTransaction.area_sqm.between(
                 area_sqm - area_tolerance, area_sqm + area_tolerance
             ),
-            RealTransaction.deal_date >= cutoff,
         )
         .order_by(RealTransaction.deal_date.desc())
         .first()
@@ -65,7 +64,8 @@ def _get_recent_deal(
     if recent is None:
         return None
 
-    # 3개월 거래 건수
+    # 최근 3개월 거래 건수
+    cutoff = datetime.now() - timedelta(days=RECENT_COUNT_DAYS)
     deal_count = (
         db.query(func.count(RealTransaction.id))
         .filter(
