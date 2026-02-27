@@ -2,14 +2,17 @@
  * ComplexTable 컴포넌트
  *
  * KB시세 vs 실거래가 비교 단지 목록을 테이블/카드로 렌더링합니다.
- * - 할인율: 절대값(억 단위) +/- 표시 (양수 = KB보다 낮게 거래 = 급매)
+ * - 할인율: 절대값(억 단위) +/- 표시 (음수 = KB보다 낮게 거래 = 급매 = 빨강)
  * - 실거래일 표시 (YYYY.MM.DD)
  * - 모바일: 카드 형태 + 드롭다운 정렬, 데스크톱: 테이블 형태 + 헤더 클릭 정렬
- * - 정렬 가능 컬럼: 실거래가, KB시세, 할인율, 거래일
+ * - 정렬 가능 컬럼: 실거래가, KB시세, 차이, 거래일
  * - 기본 정렬: 거래일 최신순
+ *
+ * 스타일: Tailwind CSS + shadcn/ui Card, Badge (ComplexTable.css 제거됨)
  */
 import { useState, useMemo } from 'react';
-import './ComplexTable.css';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 /**
  * 만원 → 모바일 축약 표기 (12.3억 / 9,500만)
@@ -35,17 +38,18 @@ function sqmToPyeong(sqm) {
 /**
  * 시세 차이 뱃지 (억 단위, +/- 부호)
  * 실거래가 - KB시세 기준:
- *   음수(급매, 실거래가 < KB시세) → 빨강 뱃지
- *   양수(프리미엄, 실거래가 > KB시세) → 초록 뱃지
+ *   음수(급매, 실거래가 < KB시세) → 빨강 뱃지 (#F04251 on #FFF3F4)
+ *   양수(프리미엄, 실거래가 > KB시세) → 파랑 뱃지 (#3182F6 on #EBF3FF)
+ *   0 → 회색 뱃지
  */
 function DiffBadge({ kbPrice, dealPrice }) {
-  if (kbPrice == null || dealPrice == null) return <span>-</span>;
+  if (kbPrice == null || dealPrice == null) return <span className="text-[#8B95A1]">-</span>;
+
   const diff = dealPrice - kbPrice; // 만원 단위, 음수=급매, 양수=프리미엄
   const isPositive = diff > 0;
-  const cls = isPositive ? 'complex-table__badge--positive' : 'complex-table__badge--negative';
+  const absDiff = Math.abs(diff);
 
   /* 억 단위 표기 */
-  const absDiff = Math.abs(diff);
   let label;
   if (absDiff >= 10000) {
     const eok = absDiff / 10000;
@@ -54,7 +58,13 @@ function DiffBadge({ kbPrice, dealPrice }) {
   } else if (absDiff > 0) {
     label = isPositive ? `+${absDiff.toLocaleString()}만` : `-${absDiff.toLocaleString()}만`;
   } else {
-    return <span className="complex-table__badge">0</span>;
+    return (
+      <Badge
+        className="bg-[#F2F4F6] text-[#8B95A1] border-0 font-bold text-[12px] px-2 py-0.5 rounded-md"
+      >
+        0
+      </Badge>
+    );
   }
 
   const tooltip = isPositive
@@ -62,9 +72,17 @@ function DiffBadge({ kbPrice, dealPrice }) {
     : `KB시세보다 ${formatPrice(absDiff)} 낮게 거래 (급매)`;
 
   return (
-    <span className={`complex-table__badge ${cls}`} title={tooltip}>
+    <Badge
+      title={tooltip}
+      className={cn(
+        'border-0 font-bold text-[12px] px-2 py-0.5 rounded-md whitespace-nowrap',
+        isPositive
+          ? 'bg-[#EBF3FF] text-[#3182F6]'   // 프리미엄: 파랑
+          : 'bg-[#FFF3F4] text-[#F04251]',   // 급매: 빨강
+      )}
+    >
       {label}
-    </span>
+    </Badge>
   );
 }
 
@@ -81,14 +99,28 @@ function formatDate(dateStr) {
 
 /** 모바일 정렬 옵션 목록 */
 const SORT_OPTIONS_MOBILE = [
-  { key: 'recentDealDate', direction: 'desc', label: '거래일 최신순' },
-  { key: 'dealDiscountRate', direction: 'desc', label: '할인 큰순' },
-  { key: 'dealDiscountRate', direction: 'asc', label: '할인 작은순' },
-  { key: 'recentDealPrice', direction: 'asc', label: '실거래가 낮은순' },
-  { key: 'recentDealPrice', direction: 'desc', label: '실거래가 높은순' },
-  { key: 'kbPriceMid', direction: 'asc', label: 'KB시세 낮은순' },
-  { key: 'kbPriceMid', direction: 'desc', label: 'KB시세 높은순' },
+  { key: 'recentDealDate',    direction: 'desc', label: '거래일 최신순' },
+  { key: 'dealDiscountRate',  direction: 'desc', label: '할인 큰순' },
+  { key: 'dealDiscountRate',  direction: 'asc',  label: '할인 작은순' },
+  { key: 'recentDealPrice',   direction: 'asc',  label: '실거래가 낮은순' },
+  { key: 'recentDealPrice',   direction: 'desc', label: '실거래가 높은순' },
+  { key: 'kbPriceMid',        direction: 'asc',  label: 'KB시세 낮은순' },
+  { key: 'kbPriceMid',        direction: 'desc', label: 'KB시세 높은순' },
 ];
+
+/** 정렬 화살표 아이콘 */
+function SortArrow({ active, direction }) {
+  return (
+    <span
+      className={cn(
+        'ml-1 inline-block text-[10px] transition-opacity',
+        active ? 'opacity-100' : 'opacity-0 group-hover:opacity-40',
+      )}
+    >
+      {direction === 'asc' ? '▲' : '▼'}
+    </span>
+  );
+}
 
 export default function ComplexTable({ complexes }) {
   /* 정렬 상태: 기본 거래일 최신순 */
@@ -137,34 +169,31 @@ export default function ComplexTable({ complexes }) {
     setSortConfig({ key: option.key, direction: option.direction });
   };
 
-  /** 정렬 화살표 표시 */
-  const getSortIndicator = (key) => {
-    if (sortConfig.key !== key) return null;
-    return <span className="complex-table__sort-arrow">{sortConfig.direction === 'asc' ? '\u25B2' : '\u25BC'}</span>;
-  };
-
   /** 현재 선택된 모바일 정렬 옵션 인덱스 */
   const currentMobileSortIndex = SORT_OPTIONS_MOBILE.findIndex(
-    opt => opt.key === sortConfig.key && opt.direction === sortConfig.direction
+    opt => opt.key === sortConfig.key && opt.direction === sortConfig.direction,
   );
 
+  /* ── 빈 상태 ── */
   if (!complexes || complexes.length === 0) {
     return (
-      <div className="complex-table__empty">
+      <div className="flex items-center justify-center py-10 text-[14px] text-[#8B95A1]">
         비교 데이터가 없습니다. KB시세와 실거래가가 모두 수집된 단지만 표시됩니다.
       </div>
     );
   }
 
   return (
-    <div className="complex-table__wrapper">
-      {/* 모바일 정렬 드롭다운 (768px 미만에서만 표시) */}
-      <div className="complex-table__mobile-sort">
-        <label className="complex-table__mobile-sort-label">정렬:</label>
+    <div className="w-full">
+
+      {/* ── 모바일 정렬 드롭다운 (767px 이하) ── */}
+      <div className="flex items-center gap-2 mb-2 md:hidden">
+        <span className="text-[13px] font-semibold text-[#8B95A1]">정렬</span>
         <select
-          className="complex-table__mobile-sort-select"
+          className="flex-1 bg-white rounded-xl border-0 shadow-sm text-[14px] text-[#191F28] px-3 py-2 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#3182F6]/30"
           value={currentMobileSortIndex >= 0 ? currentMobileSortIndex : 0}
           onChange={handleMobileSortChange}
+          aria-label="정렬 기준 선택"
         >
           {SORT_OPTIONS_MOBILE.map((opt, idx) => (
             <option key={idx} value={idx}>{opt.label}</option>
@@ -172,95 +201,166 @@ export default function ComplexTable({ complexes }) {
         </select>
       </div>
 
-      {/* 데스크톱 테이블 (768px 이상에서만 표시) */}
-      <div className="complex-table__desktop">
-        <table className="complex-table">
+      {/* ── 데스크톱 테이블 (768px 이상) ── */}
+      <div className="hidden md:block overflow-x-auto rounded-2xl shadow-sm bg-white">
+        <table className="w-full border-collapse text-[14px]">
           <thead>
-            <tr>
-              <th>아파트명</th>
-              <th>지역</th>
-              <th>면적</th>
-              <th className="complex-table__sortable" onClick={() => handleSort('recentDealPrice')}>
-                실거래가{getSortIndicator('recentDealPrice')}
+            <tr className="bg-[#F9FAFB]">
+              <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap">
+                아파트명
               </th>
-              <th className="complex-table__sortable" onClick={() => handleSort('kbPriceMid')}>
-                KB시세{getSortIndicator('kbPriceMid')}
+              <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap">
+                지역
               </th>
-              <th className="complex-table__sortable" onClick={() => handleSort('dealDiscountRate')}>
-                차이{getSortIndicator('dealDiscountRate')}
+              <th className="px-4 py-3 text-left text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap">
+                면적
               </th>
-              <th className="complex-table__sortable" onClick={() => handleSort('recentDealDate')}>
-                거래일{getSortIndicator('recentDealDate')}
+              {/* 실거래가 */}
+              <th
+                className="group px-4 py-3 text-right text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap cursor-pointer select-none hover:bg-[#F2F4F6] transition-colors"
+                onClick={() => handleSort('recentDealPrice')}
+              >
+                실거래가
+                <SortArrow
+                  active={sortConfig.key === 'recentDealPrice'}
+                  direction={sortConfig.key === 'recentDealPrice' ? sortConfig.direction : 'desc'}
+                />
+              </th>
+              {/* KB시세 */}
+              <th
+                className="group px-4 py-3 text-right text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap cursor-pointer select-none hover:bg-[#F2F4F6] transition-colors"
+                onClick={() => handleSort('kbPriceMid')}
+              >
+                KB시세
+                <SortArrow
+                  active={sortConfig.key === 'kbPriceMid'}
+                  direction={sortConfig.key === 'kbPriceMid' ? sortConfig.direction : 'desc'}
+                />
+              </th>
+              {/* 차이 */}
+              <th
+                className="group px-4 py-3 text-center text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap cursor-pointer select-none hover:bg-[#F2F4F6] transition-colors"
+                onClick={() => handleSort('dealDiscountRate')}
+              >
+                차이
+                <SortArrow
+                  active={sortConfig.key === 'dealDiscountRate'}
+                  direction={sortConfig.key === 'dealDiscountRate' ? sortConfig.direction : 'desc'}
+                />
+              </th>
+              {/* 거래일 */}
+              <th
+                className="group px-4 py-3 text-center text-[13px] font-semibold text-[#8B95A1] border-b border-[#F2F4F6] whitespace-nowrap cursor-pointer select-none hover:bg-[#F2F4F6] transition-colors"
+                onClick={() => handleSort('recentDealDate')}
+              >
+                거래일
+                <SortArrow
+                  active={sortConfig.key === 'recentDealDate'}
+                  direction={sortConfig.key === 'recentDealDate' ? sortConfig.direction : 'desc'}
+                />
               </th>
             </tr>
           </thead>
           <tbody>
             {sortedComplexes.map((item, idx) => (
-              <tr key={`${item.complexId}-${item.areaSqm}-${idx}`}>
-                <td className="complex-table__name">
-                  <span>{item.name}</span>
+              <tr
+                key={`${item.complexId}-${item.areaSqm}-${idx}`}
+                className="border-b border-[#F2F4F6] hover:bg-[#F9FAFB] transition-colors last:border-0"
+              >
+                {/* 아파트명 */}
+                <td className="px-4 py-3 align-middle">
+                  <span className="font-medium text-[#191F28]">{item.name}</span>
                   {item.builtYear && (
-                    <span className="complex-table__year">{item.builtYear}년</span>
+                    <span className="block text-[12px] text-[#8B95A1] mt-0.5">{item.builtYear}년</span>
                   )}
                 </td>
-                <td className="complex-table__region">
+                {/* 지역 */}
+                <td className="px-4 py-3 align-middle text-[#191F28]">
                   <span>{item.sigungu}</span>
-                  {item.dong && <span className="complex-table__dong"> {item.dong}</span>}
+                  {item.dong && (
+                    <span className="text-[#8B95A1] text-[13px]"> {item.dong}</span>
+                  )}
                 </td>
-                <td className="complex-table__area">
+                {/* 면적 */}
+                <td className="px-4 py-3 align-middle whitespace-nowrap text-[#191F28]">
                   {item.areaSqm.toFixed(1)}㎡
-                  <span className="complex-table__pyeong">({sqmToPyeong(item.areaSqm)}평)</span>
+                  <span className="text-[#8B95A1] text-[12px] ml-0.5">({sqmToPyeong(item.areaSqm)}평)</span>
                 </td>
-                <td className="complex-table__price">
-                  <span className="complex-table__price--full">{formatPrice(item.recentDealPrice)}</span>
-                  <span className="complex-table__price--compact">{formatPrice(item.recentDealPrice, true)}</span>
+                {/* 실거래가 */}
+                <td className="px-4 py-3 align-middle text-right whitespace-nowrap font-bold text-[#191F28]">
+                  {formatPrice(item.recentDealPrice)}
                 </td>
-                <td className="complex-table__price">
-                  <span className="complex-table__price--full">{formatPrice(item.kbPriceMid)}</span>
-                  <span className="complex-table__price--compact">{formatPrice(item.kbPriceMid, true)}</span>
+                {/* KB시세 */}
+                <td className="px-4 py-3 align-middle text-right whitespace-nowrap font-bold text-[#191F28]">
+                  {formatPrice(item.kbPriceMid)}
                 </td>
-                <td>
+                {/* 차이 */}
+                <td className="px-4 py-3 align-middle text-center">
                   <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
                 </td>
-                <td className="complex-table__date">{formatDate(item.recentDealDate)}</td>
+                {/* 거래일 */}
+                <td className="px-4 py-3 align-middle text-center whitespace-nowrap text-[#8B95A1] text-[13px]">
+                  {formatDate(item.recentDealDate)}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* 모바일 카드 레이아웃 (768px 미만에서만 표시) */}
-      <div className="complex-table__cards">
+      {/* ── 모바일 카드 레이아웃 (767px 이하) ── */}
+      <div className="flex flex-col gap-2 md:hidden">
         {sortedComplexes.map((item, idx) => (
-          <article key={`card-${item.complexId}-${item.areaSqm}-${idx}`} className="complex-card">
-            <div className="complex-card__header">
-              <span className="complex-card__name">{item.name}</span>
+          <article
+            key={`card-${item.complexId}-${item.areaSqm}-${idx}`}
+            className="bg-white rounded-2xl shadow-sm border-0 p-5"
+          >
+            {/* 헤더: 단지명 + 차이 뱃지 */}
+            <div className="flex items-center justify-between mb-1">
+              <span className="font-semibold text-[15px] text-[#191F28] leading-snug">
+                {item.name}
+              </span>
               <DiffBadge kbPrice={item.kbPriceMid} dealPrice={item.recentDealPrice} />
             </div>
-            <div className="complex-card__sub">
+
+            {/* 서브 정보: 지역 · 면적 · 연도 */}
+            <div className="flex items-center flex-wrap gap-1.5 mb-3 text-[13px] text-[#8B95A1]">
               <span>{item.sigungu}{item.dong ? ` ${item.dong}` : ''}</span>
-              <span className="complex-card__dot" />
-              <span>{item.areaSqm.toFixed(1)}㎡ ({sqmToPyeong(item.areaSqm)}평)</span>
-              {item.builtYear && <span className="complex-card__dot" />}
-              {item.builtYear && <span>{item.builtYear}년</span>}
+              <span className="inline-block w-1 h-1 rounded-full bg-[#D1D5DB]" aria-hidden="true" />
+              <span>{item.areaSqm.toFixed(1)}㎡({sqmToPyeong(item.areaSqm)}평)</span>
+              {item.builtYear && (
+                <>
+                  <span className="inline-block w-1 h-1 rounded-full bg-[#D1D5DB]" aria-hidden="true" />
+                  <span>{item.builtYear}년</span>
+                </>
+              )}
             </div>
-            <div className="complex-card__prices">
-              <div className="complex-card__price-item">
-                <span className="complex-card__price-label">실거래가</span>
-                <span>{formatPrice(item.recentDealPrice, true)}</span>
+
+            {/* 가격 행 */}
+            <div className="grid grid-cols-3 gap-2 pt-3 border-t border-[#F2F4F6]">
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[13px] text-[#8B95A1]">실거래가</span>
+                <span className="font-bold text-[15px] text-[#191F28]">
+                  {formatPrice(item.recentDealPrice, true)}
+                </span>
               </div>
-              <div className="complex-card__price-item">
-                <span className="complex-card__price-label">KB시세</span>
-                <span>{formatPrice(item.kbPriceMid, true)}</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[13px] text-[#8B95A1]">KB시세</span>
+                <span className="font-bold text-[15px] text-[#191F28]">
+                  {formatPrice(item.kbPriceMid, true)}
+                </span>
               </div>
-              <div className="complex-card__price-item">
-                <span className="complex-card__price-label">거래일</span>
-                <span>{formatDate(item.recentDealDate)}</span>
+              <div className="flex flex-col items-center gap-1">
+                <span className="text-[13px] text-[#8B95A1]">거래일</span>
+                <span className="font-bold text-[15px] text-[#191F28]">
+                  {formatDate(item.recentDealDate)}
+                </span>
               </div>
             </div>
           </article>
         ))}
       </div>
+
     </div>
   );
 }

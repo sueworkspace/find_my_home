@@ -1,87 +1,70 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
 /* ===================================================================
  * 글로벌 스타일 (index.css)
- * - 전체 앱에 적용되는 CSS 변수, 리셋, 기본 스타일 정의
- * - Mobile First: 모바일 기본 → min-width 미디어쿼리로 데스크톱 확장
+ * - shadcn/ui + Tailwind CSS v4 기반
+ * - 한국 핀테크/프롭테크 앱 스타일 (토스/호갱노노/직방 참고)
  * =================================================================== */
 
 :root {
-  /* === 네이비 블루 테마 색상 === */
-  --color-primary: #1B3A5C;
-  --color-primary-dark: #0F2640;
-  --color-primary-light: #2A5A8C;
-  --color-accent: #3B82F6;
-  --color-accent-light: #60A5FA;
+  /* === shadcn 테마 토큰 === */
+  --radius: 1rem;
+  --background: oklch(0.985 0.002 247);
+  --foreground: oklch(0.16 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.02 260);
+  --primary: oklch(0.45 0.15 255);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0.002 247);
+  --secondary-foreground: oklch(0.25 0.02 260);
+  --muted: oklch(0.97 0.002 247);
+  --muted-foreground: oklch(0.55 0.02 260);
+  --accent: oklch(0.97 0.002 247);
+  --accent-foreground: oklch(0.25 0.02 260);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.94 0.005 250);
+  --input: oklch(0.94 0.005 250);
+  --ring: oklch(0.45 0.15 255);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
 
-  /* === 중립 색상 (그레이 스케일) === */
-  --color-bg: #F8FAFC;
-  --color-white: #FFFFFF;
-  --color-gray-50: #F8FAFC;
-  --color-gray-100: #F1F5F9;
-  --color-gray-200: #E2E8F0;
-  --color-gray-300: #CBD5E1;
-  --color-gray-400: #94A3B8;
-  --color-gray-500: #64748B;
-  --color-gray-600: #475569;
-  --color-gray-700: #334155;
-  --color-gray-800: #1E293B;
-  --color-gray-900: #0F172A;
-
-  /* === 시맨틱 색상 (의미 기반) === */
-  --color-discount-high: #DC2626;
-  --color-discount-mid: #F59E0B;
-  --color-discount-low: #22C55E;
-  --color-positive: #16A34A;
-  --color-positive-bg: #DCFCE7;
-  --color-negative: #DC2626;
-  --color-negative-bg: #FEE2E2;
-
-  /* === 간격 (스페이싱) === */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-
-  /* === 모서리 반경 === */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-
-  /* === 그림자 === */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  /* === 한국 앱 시맨틱 색상 === */
+  --color-price-up: #F04251;
+  --color-price-up-bg: #FFF3F4;
+  --color-price-down: #3182F6;
+  --color-price-down-bg: #EBF3FF;
+  --color-text-primary: #191F28;
+  --color-text-secondary: #8B95A1;
+  --color-text-disabled: #D1D6DB;
+  --color-surface: #F9FAFB;
+  --color-divider: #F2F4F6;
+  --color-toss-blue: #1B64DA;
 
   /* === 폰트 === */
-  --font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
-
-  /* === 터치 타겟 최소 크기 (접근성) === */
-  --touch-min: 44px;
+  --font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
 }
 
-/* === CSS 리셋 === */
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-/* 모바일 기본 폰트 크기 (14px) */
+/* === 기본 스타일 === */
 html {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 body {
   font-family: var(--font-family);
-  background-color: var(--color-bg);
-  color: var(--color-gray-800);
-  line-height: 1.6;
+  background-color: var(--color-surface);
+  color: var(--color-text-primary);
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* 모바일에서 가로 스크롤 방지 */
   overflow-x: hidden;
 }
 
@@ -90,39 +73,63 @@ a {
   text-decoration: none;
 }
 
-/* 버튼/링크 터치 친화적 최소 크기 */
-button {
-  cursor: pointer;
-  font-family: var(--font-family);
-  min-height: var(--touch-min);
-}
-
-select {
-  font-family: var(--font-family);
-  min-height: var(--touch-min);
-}
-
 #root {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
-/* === 스크롤바 커스터마이징 (웹킷 브라우저) === */
+/* === 스크롤바 숨김 (앱 느낌) === */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 0;
+  height: 0;
 }
 
-::-webkit-scrollbar-track {
-  background: var(--color-gray-100);
+/* 가로 스크롤 칩에서 스크롤바 숨김 */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--color-gray-300);
-  border-radius: 3px;
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-gray-400);
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }

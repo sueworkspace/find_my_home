@@ -6,9 +6,9 @@
  * - 300ms 디바운스로 과도한 API 호출 방지
  * - 2글자 이상 입력 시 검색 실행, 빈 입력 시 초기화
  * - 클리어(X) 버튼으로 검색어 즉시 삭제
+ * - Tailwind CSS 기반, CSS 파일 없음
  */
 import { useState, useEffect, useRef } from 'react';
-import './SearchBar.css';
 
 export default function SearchBar({ onSearch }) {
   const [inputValue, setInputValue] = useState('');
@@ -36,11 +36,11 @@ export default function SearchBar({ onSearch }) {
   };
 
   return (
-    <div className="search-bar">
-      <div className="search-bar__wrapper">
+    <div className="w-full">
+      {/* 검색 래퍼: 회색 배경 pill 형태 */}
+      <div className="flex items-center gap-2 bg-[#F2F4F6] rounded-xl px-4 h-12">
         {/* 돋보기 아이콘 */}
         <svg
-          className="search-bar__icon"
           xmlns="http://www.w3.org/2000/svg"
           width="18"
           height="18"
@@ -50,6 +50,8 @@ export default function SearchBar({ onSearch }) {
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
+          className="text-[#8B95A1] shrink-0"
+          aria-hidden="true"
         >
           <circle cx="11" cy="11" r="8" />
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -57,27 +59,31 @@ export default function SearchBar({ onSearch }) {
 
         <input
           type="text"
-          className="search-bar__input"
+          className="flex-1 bg-transparent text-[15px] text-[#191F28] placeholder:text-[#8B95A1] outline-none border-none"
           placeholder="아파트명 검색 (예: 래미안, 힐스테이트)"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
+          aria-label="단지명 검색"
         />
 
         {/* 클리어 버튼: 입력값이 있을 때만 표시 */}
         {inputValue && (
           <button
-            className="search-bar__clear"
-            onClick={handleClear}
             type="button"
+            onClick={handleClear}
             aria-label="검색어 지우기"
+            className="flex items-center justify-center w-5 h-5 rounded-full bg-[#8B95A1] text-white text-[12px] leading-none shrink-0 hover:bg-[#4E5968] transition-colors"
           >
-            &times;
+            ×
           </button>
         )}
       </div>
+
       {/* 안내 텍스트: 1글자만 입력한 경우 */}
       {inputValue.trim().length === 1 && (
-        <span className="search-bar__hint">2글자 이상 입력하세요</span>
+        <p className="mt-1 px-1 text-[13px] text-[#8B95A1]">
+          2글자 이상 입력하세요
+        </p>
       )}
     </div>
   );

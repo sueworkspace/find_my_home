@@ -6,6 +6,7 @@
  * - 탭 전환: 단지 비교 ↔ 데이터 현황
  * - 단지명 검색 또는 지역 선택 → API 호출 → KB시세 vs 실거래가 비교 단지 목록 표시
  * - 클라이언트 사이드 필터링 (할인율, 가격, 면적, 급매)
+ * - Tailwind CSS 기반, App.css 제거
  */
 import { useState, useCallback, useMemo, useRef } from 'react';
 import Header from './components/Header';
@@ -17,7 +18,6 @@ import EmptyState from './components/EmptyState';
 import LoadingSpinner from './components/LoadingSpinner';
 import Dashboard from './components/Dashboard';
 import { getComplexes } from './services/api';
-import './App.css';
 
 export default function App() {
   /* === 상태 관리 === */
@@ -208,50 +208,54 @@ export default function App() {
   };
 
   return (
-    <div className="app">
+    <div className="flex flex-col min-h-screen bg-[#F9FAFB]">
       {/* 헤더: 앱 타이틀 + 탭 네비게이션 */}
       <Header activeView={activeView} onViewChange={setActiveView} />
 
-      <main className="app__main">
-        <div className="app__container">
+      <main className="flex-1 px-4 py-3">
+        <div className="max-w-[1400px] mx-auto flex flex-col gap-3">
+
           {/* 단지 비교 뷰 */}
           {activeView === 'listings' && (
             <>
               {/* 단지명 검색 + 지역 선택 */}
-              <section className="app__section">
+              <section className="flex flex-col gap-2">
                 <SearchBar onSearch={handleSearch} />
-                <div className="app__region-row">
+                <div>
                   <RegionSelector onRegionChange={handleRegionChange} />
                 </div>
               </section>
 
-              {/* 선택된 지역/검색어 + 결과 건수 */}
+              {/* 선택된 지역/검색어 + 필터 칩 행 */}
               {hasResults && (
-                <div className="app__toolbar">
-                  <span className="app__region-label">
-                    {regionSelected
-                      ? `${selectedRegion.sido} ${selectedRegion.sigungu}`
-                      : '전국'}
-                    {searchText && <span className="app__search-label"> &middot; &ldquo;{searchText}&rdquo;</span>}
-                    {!loading && (
-                      <span className="app__count"> — {filteredComplexes.length}/{complexes.length}건</span>
-                    )}
-                  </span>
+                <div className="flex flex-col gap-2">
+                  {/* 툴바: 지역 라벨 + 건수 */}
+                  <div className="flex items-center px-1 pt-1">
+                    <span className="text-[15px] font-bold text-[#191F28]">
+                      {regionSelected
+                        ? `${selectedRegion.sido} ${selectedRegion.sigungu}`
+                        : '전국'}
+                      {searchText && (
+                        <span className="font-normal text-[#1B64DA]"> &middot; &ldquo;{searchText}&rdquo;</span>
+                      )}
+                      {!loading && (
+                        <span className="font-normal text-[#8B95A1] text-[14px]"> — {filteredComplexes.length}/{complexes.length}건</span>
+                      )}
+                    </span>
+                  </div>
+
+                  {/* 필터 칩 */}
+                  <Filters
+                    filters={filterState}
+                    onFilterChange={handleFilterChange}
+                    totalCount={complexes.length}
+                    filteredCount={filteredComplexes.length}
+                  />
                 </div>
               )}
 
-              {/* 필터 패널: 결과가 있을 때 표시 */}
-              {hasResults && (
-                <Filters
-                  filters={filterState}
-                  onFilterChange={handleFilterChange}
-                  totalCount={complexes.length}
-                  filteredCount={filteredComplexes.length}
-                />
-              )}
-
               {/* 메인 컨텐츠 */}
-              <section className="app__section app__section--content">
+              <section className="min-h-[300px] md:min-h-[400px]">
                 {renderContent()}
               </section>
             </>
@@ -259,7 +263,7 @@ export default function App() {
 
           {/* 데이터 현황 뷰 */}
           {activeView === 'dashboard' && (
-            <section className="app__section">
+            <section>
               <Dashboard />
             </section>
           )}
@@ -267,7 +271,7 @@ export default function App() {
       </main>
 
       {/* 푸터 */}
-      <footer className="app__footer">
+      <footer className="bg-[#191F28] text-[#8B95A1] text-center py-5 px-4 text-[12px] leading-relaxed mt-auto">
         <p>
           Find My Home &middot; KB시세 vs 실거래가 비교 &middot;
           데이터는 참고용이며 투자 판단의 책임은 본인에게 있습니다.
